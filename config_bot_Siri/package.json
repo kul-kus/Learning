@@ -1,0 +1,19 @@
+{
+  "name": "siri",
+  "version": "1.0.0",
+  "description": "",
+  "bin": {
+    "siri": "./index.js",
+    "alexa": "./index.js"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "kuldeep kushwaha",
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^4.0.0",
+    "inquire": "^0.4.8"
+  }
+}

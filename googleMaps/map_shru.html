@@ -1,0 +1,420 @@
+﻿﻿@using RainWorx.FrameWorx.MVC.Helpers.Rextar
+@{
+ViewBag.SiteTitle = SiteClient.Settings[SiteProperties.SiteTitle];
+}
+@section head{
+@Styles.Render(" ~/bundles/RT_page_css")
+}
+@{
+string search_addr = string.Empty;
+if (Request.QueryString.Count > 0)
+{
+if (Request.QueryString.AllKeys.Contains("FullTextQuery") && Request.QueryString["FullTextQuery"] != null)
+{
+search_addr = Request.QueryString["FullTextQuery"];
+}
+}
+}
+<style>
+    .value {
+        position: absolute;
+        top: 30px;
+        left: 50%;
+        margin: 0 0 0 -20px;
+        width: 40px;
+        text-align: center;
+        display: block;
+        color: #333;
+    }
+
+    .price-range-both.value {
+        width: 100px;
+        margin: 0 0 0 -50px;
+        top: 26px;
+    }
+
+    .price-range-both {
+        display: none;
+    }
+
+    .value i {
+        font-style: normal;
+    }
+</style>
+<div class="col-xs-12">
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="form-group">
+                <div class="row">
+                    <div class="col-sm-12">
+                        <div class="search-location-holder">
+                            <div>
+                                <h2>Enter a state, city or zip code</h2>
+                                <h2>We'll do the rest.</h2>
+                            </div>
+                            <div class="input-group">
+                                <span class="input-group-addon" style="background:white;">
+                                    <i class="glyphicon glyphicon-search"></i>
+                                </span>
+
+                                <div id="pac-container">
+                                    <input id="FullTextQuery" class="form-control input-lg" type="text" spellcheck="false"
+                                        onclick="this.select()" placeholder="@Html.GlobalResource(StringConstants.RT_FindLocationPlaceholder)" />
+                                </div>
+                                <div class="input-group-btn" role="group">
+                                    <a class="btn btn-warning btn-lg confirm-location" href="/Listing/CustomAdvancedSearch#mapView">@Html.GlobalResource("Search")</a>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+            <div class="search-location-info">
+                @Html.Hidden("search_addr", search_addr)
+                @Html.Hidden("search_latitude")
+                @Html.Hidden("search_longitude")
+            </div>
+            <div class="form-group">
+                <div class="row">
+                    <label class="required col-sm-1 control-label">@Html.GlobalResource(StringConstants.RT_Radius)</label>
+                    <div class="col-sm-3">
+                        @Html.DropDownList("RadiusRangeList", (IEnumerable<SelectListItem>)ViewData["RadiusRangeList"],
+                            null, new { @class = "form-control" })
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="col-md-3 control-label"> @Html.GlobalResource("PriceRange")</label>
+                <div class="col-md-7">
+                    <div class="price-range-slider" style="margin-bottom:20px;"></div>
+                    @Html.Hidden("PriceLow")
+                    @Html.Hidden("PriceHigh")
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="col-xs-12">
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <div class="form-group">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h2>@Html.GlobalResource("AdvancedSearch")</h2>
+                        <h4>@Html.GlobalResource(StringConstants.RT_AdvancedSearchSubHeading)</h4>
+                        <div>
+                            <span id="ListingsTotalCount"></span>
+                            @Html.GlobalResource(StringConstants.RT_Results)
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<div class="col-xs-12">
+    <div class="panel panel-default">
+        <div class="panel-body">
+            <a name="mapView"></a>
+            <div id="map" style="width:100%; height:600px;"></div>
+        </div>
+    </div>
+
+</div>
+
+
+
+@*
+<script type='text/javascript' src="https://maps.googleapis.com/maps/api/js?key='gdsfgsdjb'&libraries=places&callback=locateMarkers"
+    async defer></script>*@
+<script type='text/javascript' src="https://maps.googleapis.com/maps/api/js?key=@System.Web.Configuration.WebConfigurationManager.AppSettings["
+    GoogleAPIKey"]&libraries=places&callback=locateMarkers" async defer></script>
+
+<script>
+
+    $(document).ready(function () {
+        //set initial values
+        //$("#RadiusRangeList").val(@Request.Form["RadiusRangeList"])
+        $('#FullTextQuery').val($('#search_addr').val())
+
+
+
+        //add total listings count for the searched location
+        if (listings.length > 0) {
+            $('#ListingsTotalCount').text(listings[0]["TotalCount"])
+        }
+        else {
+            $('#ListingsTotalCount').text(0)
+        }
+
+
+        //Confirm Location button click
+        $('.confirm-location').click(function () {
+            $('#FullTextQuery').val($('#search_addr').val())
+            var locn = $("#FullTextQuery").val();
+            if ($('#FullTextQuery').val() != null || $('#FullTextQuery').val() != '' || $('#FullTextQuery').val().length >= 0) {
+
+                var checkadd = $('#search_addr').val() ? $('#search_addr').val() : $('#FullTextQuery').val()
+                if ($('#FullTextQuery').val() != checkadd) {
+                    $('#location-required').css('display', 'block')
+                    return false;
+                }
+                else {
+                    $('#FullTextQuery').val($('#search_addr').val())
+                    $('#location-required').css('display', 'none')
+                }
+            }
+
+            //get searched listings information for the specified searched location
+            SearchListings();
+        });
+
+    });
+
+    //get searched listings information for the specified searched location
+    function SearchListings(lat,lng) {
+        $.ajax({
+            url: 'Listing/LocateListings',
+            data: {
+                latitude: $('#search_latitude').val(),
+                longitude: $('#search_longitude').val(),
+                radiusRangeList: $('#RadiusRangeList').val()
+            },
+            dataType: 'json',
+            success: function (data) {
+                if (data != null) {
+                    console.log('data--', data)
+                    listings = data.Data;
+                    console.log(`Ajax json: `, listings[0]["TotalCount"])
+                    if (listings.length > 0 && listings[0]["TotalCount"]) {
+                        $('#ListingsTotalCount').text(listings[0]["TotalCount"])
+
+                    }
+                    //var myOptions = {
+                    //    center: new google.maps.LatLng(listings[0]["Latitude"],listings[0]["Longitude"]),
+                    //    zoom: 12,
+                    //    center: new google.maps.LatLng(listings[0]["Latitude"], listings[0]["Longitude"])
+                    //};
+                    //var map = new google.maps.Map(document.getElementById("map"),
+                    //    myOptions);
+
+                    //setMarkers(map, listings,map.center);
+
+                    showMarker();
+                }
+
+            },
+            error: function (data) {
+                console.log(data);
+            }
+        });
+    }
+
+    $(function () {
+        $("form input").keypress(function (e) {
+            if ((e.which && e.which == 13) || (e.keyCode && e.keyCode == 13)) {
+                $('.EnterFocus').click();
+                return false;
+            } else {
+                return true;
+            }
+        });
+    });
+
+    var map = null;
+    var lat = null;
+    var lng = null;
+    var marker, i;
+    var autocomplete = null;
+    //get listings for the searched location
+    var listings = @Html.Raw(Json.Encode(ViewData["listings"]));
+    listings = JSON.parse(listings).Data;
+
+
+
+    console.log(`json: `, listings)
+
+
+    function locateMarkers() {
+
+        var latitude = parseFloat(document.getElementById('search_latitude').value);
+        var longitude = parseFloat(document.getElementById('search_longitude').value);
+
+        lat = latitude ? latitude : 53.4843
+
+        lng = longitude ? longitude : -113.5618
+
+        var geocoder = new google.maps.Geocoder();
+        
+
+        //Displays a marker at the center of Edmonton.
+        var map = new google.maps.Map(document.getElementById('map'), {
+            zoom: 12,
+            center: new google.maps.LatLng(lat, lng)
+
+        });
+
+        input = document.getElementById('FullTextQuery');
+        autocomplete = new google.maps.places.Autocomplete(input);
+
+        //display locations on entering location in search input
+        autocomplete.addListener('place_changed', function () {
+            place = autocomplete.getPlace();
+            console.log('place-', place)
+
+            //update selected location in search input
+            $('#FullTextQuery').val(place.formatted_address);
+
+            //update address,latitude,longitude in hidden fields
+            updateAddress(place.formatted_address, place.geometry.location.lat(), place.geometry.location.lng());
+            $('#location-required').css('display', 'none')
+        });
+        //search biox
+        console.log('map.center-', map.center)
+        makeMapCircle(map.getCenter())
+
+        showMarker();
+
+
+
+        //on map panning event to get new center (lat,lng,place)
+        map.addListener('dragend', function () {
+            //alert(98)
+           // console.log('marker-', marker)
+            // if (marker != undefined) {
+            //     marker.setPosition(this.getCenter()); // set marker position to map center
+            // }
+            makeMapCircle(map.getCenter())
+            map.setCenter(map.getCenter())
+
+            var myLatLng = new google.maps.LatLng(this.getCenter().lat(), this.getCenter().lng());
+            console.log('new center on panning-', this.getCenter().lat())
+            map.panTo(myLatLng);
+            map.setCenter(myLatLng);
+
+            var address = '';
+            //get location address for the new latitude and longitude on map panning
+            var geocoder = geocoder = new google.maps.Geocoder();
+            geocoder.geocode({ 'latLng': myLatLng }, function (results, status) {
+                if (status == google.maps.GeocoderStatus.OK) {
+                    if (results[1]) {
+                        address = results[1].formatted_address;
+                        console.log('address-', results[1].formatted_address)
+                        $('#FullTextQuery').val(results[1].formatted_address)
+                        $('#search_addr').val(address);
+                    }
+                }
+            });
+            //update address,latitude,longitude in hidden fields
+            updateAddress(address, this.getCenter().lat(), this.getCenter().lng());
+
+            //update markers for the new center
+            
+            //locateMarkers();
+            SearchListings();
+        });
+
+    }
+
+function makeMapCircle(center) {
+            if (cityCircle && cityCircle.setMap) {
+                cityCircle.setMap(null);
+            }
+            cityCircle = new google.maps.Circle({
+                strokeColor: '#FF0000',
+                strokeOpacity: 0.8,
+                strokeWeight: 1,
+                // fillColor: '#FF0000',
+                fillOpacity: 0.1,
+                map: map,
+                center: center,
+                radius: miles * 1609.34
+                // radius: 1000
+            });
+
+        }
+function showMarker() {
+                    // setMapOnAll(null);
+
+var infowindow = new google.maps.InfoWindow();
+
+
+for (i = 0; i < marker.length; i++) {
+    if (marker[i] && marker[i].setMap) {
+        marker[i].setMap(null);
+    }
+}
+marker = []
+
+for (i = 0; i < listings.length; i++) {
+
+   // console.log("----init---", initLat, initLng)
+    //console.log("----locations ---", listings[i][0], locations[i][1], locations[i][2])
+
+        marker = new google.maps.Marker({
+                position: new google.maps.LatLng(listings[i]["Latitude"], listings[i]["Longitude"]),
+                map: map
+            });
+
+            //Display listing information on marker click
+            google.maps.event.addListener(marker, 'click', (function (marker, i) {
+                return function () {
+                     var infowindowContent = document.getElementById('infowindow-content');
+                     var infowindow = new google.maps.InfoWindow();
+
+                    if (listings[i]["PrimaryImageURI"] != "") {
+                        listings[i]["PrimaryImageURI"]=stringFormat(listings[i]["PrimaryImageURI"],"thumbfit")
+                    }
+                    //${listings[i]["PrimaryImageURI"]}
+                    infowindowContent='<div id="infowindow-content" style="height:auto;overflow:hidden;">'+
+                '<div style="width:120px;float:left;">'+
+                        '<img id="listingImage" style="width:100%" src="' +listings[i]["PrimaryImageURI"]+'" alt="no-image">'+
+                '</div>'+
+                '<div style="width:160px;float:left;padding-left:10px;">'+
+                    '<div id="place-address" style="margin-bottom:4px;"><b>'+listings[i]["ListingAddress"]+'</b></div>'+
+                    '<div><span id="bedrooms" class="glyphicon glyphicon-bed"></span>&nbsp;'+listings[i]["Bedrooms"]+'<br /><br /></div>'+
+                   '<a class="viewProperty" href="Listing/Details/'+listings[i]["ListingId"]+'"><b>@Html.GlobalResource(StringConstants.RT_ViewProperty).ToString().ToUpper()&nbsp;<span class="glyphicon glyphicon-arrow-right"></span></b></a>'+
+                '</div>'+
+                        '</div>';
+
+                infowindow.setContent(infowindowContent);
+                infowindow.open(map, marker);
+                }
+            }) (marker, i));
+}//end for loop
+
+// alert("--- inside  marker.setMap-  ")
+// marker.setMap(null);
+
+console.log("showMarker -> markerInRadius", markerInRadius)
+console.log("showMarker -> marker && marker.setMap", marker, " ---  ")
+}
+
+
+    //update address,latitude,longitude in hidden fields
+    function updateAddress(add, lat, lng) {
+        $('#search_addr').val(add);
+        $('#search_latitude').val(lat);
+        $('#search_longitude').val(lng);
+        $('#FullTextQuery').val($('#search_addr').val())
+    }
+
+    //replace arguments in javascript. same as string.format
+    function stringFormat(fmt, ...args) {
+        return fmt.replace(/((?:[^{}]|(?:\{\{)|(?:\}\}))+)|(?:\{([0-9]+)\})/g, (m, str, index) => {
+            if (str) {
+                return str.replace(/(?:{{)|(?:}})/g, m => m[0]);
+            } else {
+                return args[index];
+            }
+        });
+    }
+
+</script>
