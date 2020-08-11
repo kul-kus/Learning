@@ -1,50 +1,25 @@
-var inquirer = require('inquirer');
-var spawn = require('child_process').spawn;
+
+var comm = require("./common.js")
+
 module.exports = {
-    show: function (command) {
-        var cmdToGetFile = spawn('cd "$@" && ls wmio/.connector', {
-            shell: true
-        });
-        let wmioFileName = []
-        
-        if (command == "whoami") {
-            self.show_file("config.json")
-        } else {
-            cmdToGetFile.stdout.on('data', function (data) {
-                wmioFileName = data.toString().split("\n").filter(Boolean)
-                self.showOptions(wmioFileName)
-            });
-            cmdToGetFile.on('exit', function (exitCode) {
-            })
-        }
-    },
-
-    showOptions: function (arr) {
-        let opt = [{
-            name: "alexa",
-            type: 'list',
-            message: "select the file to show",
-            pageSize: 5,
-            choices: arr
-        }];
-
-        return inquirer.prompt(opt).then(data => {
-            // console.log("TCL: ab - >", data.alexa)
-            return self.show_file(data.alexa)
-        });
-    },
-    show_file(fileName) {
-        let readCommand = spawn(`cd "$@" && cat wmio/.connector/${fileName}`, {
-            shell: true
-        })
-        readCommand.stdout.on('data', function (data) {
-            let finalData = JSON.parse(data.toString())
-            if (finalData.access_token) {
-                delete finalData.access_token
+    show: async function (command, filtetParam) {
+        try {
+            if (command == "whoami" || command == "alias") {
+                let fileName = (command == "whoami") ? ("config.json") : ("alias.json")
+                let finalData = await comm.readFile(fileName)
+                console.log(finalData)
+            } else {
+                let wmioFileName = await comm.getFileList(filtetParam, true)
+                if (wmioFileName.length) {
+                    let selectedOpt = await comm.showOptions(wmioFileName, "Select the File view.")
+                    let finalData = await comm.readFile(selectedOpt)
+                    console.log(finalData)
+                } else {
+                    comm.showError("No records found..")
+                }
             }
-            console.log(finalData)
-        });
+        } catch (error) {
+            comm.showError(error)
+        }
     }
 }
-
-var self = module.exports
