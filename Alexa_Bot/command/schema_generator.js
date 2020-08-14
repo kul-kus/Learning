@@ -126,22 +126,10 @@ try {
 
     }
 } catch (e) {
-    // console.log(e.stack)
 
-    comm.showError(e.stack)
+    return  comm.showError(e.stack)
 }
 
 module.exports = {
     buildSchema: callBuildSchema
 }
-
-
-// module.exports.buildSchema({ "name": "ddd" })
-
-
-// console.log(buildSchema(
-//     {
-//         "name": "sss",
-
-//     }
-// ))

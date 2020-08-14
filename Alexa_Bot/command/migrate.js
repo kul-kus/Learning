@@ -25,7 +25,7 @@ module.exports = {
                     cmdToExecMigrate.stdout.on('data', function (data) {
                         data = data.toString()
                         if (data.includes("[ERROR]")) {
-                            comm.showError(data)
+                            return comm.showError(data)
                         }
                         else if (data.includes("[INFO]") && data.includes("successfully")) {
                             comm.showMessageOrange(data)
@@ -33,23 +33,14 @@ module.exports = {
                             comm.showMessageRandom(data, "green")
                         }
                     })
-
-                    // console.log("[data[selectedTenant]]-->", [data[selectedTenant]])
-                    // var cmdToExecMigrate = spawn("wmio", [data[selectedTenant]], {
-                    //     stdio: 'inherit',
-                    //     detached: true
-                    // });
-                    // cmdToExecMigrate.stdout.on("data", function (data) {
-                    //     process.stdout.pipe(data);
-                    // });
                 } else {
-                    comm.showError("Unable to find file Alias.json")
+                    return comm.showError("Unable to find file Alias.json")
                 }
             });
             cmdToGetFile.on('exit', function (exitCode) {
             })
         } catch (error) {
-            comm.showError(error)
+            return comm.showError(error)
         }
 
         // }

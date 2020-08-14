@@ -1,14 +1,24 @@
 let chalk = require("chalk")
 var inquirer = require('inquirer');
 var spawn = require('child_process').spawn;
-
-var wmioPath = "wmio/.connector"
+var config = require("./../config")
 
 module.exports = {
-    "homePath":"/home/kulk@eur.ad.sag/wmio/.connector",
-    "wmioPath": "wmio/.connector",
+    "homePath": config.homePath,
+    "wmioPath": config.wmioPath,
 
+    checkIfFileExist: function (fileName) {
+        return new Promise(async function (res, rej) {
+            try {
+                let FileList = await self.getFileList()
+                return (FileList.includes(fileName)) ? res(true) : res(false)
+            } catch (error) {
+                return rej(false)
+            }
+        })
+    },
     getFileList: function (filterParam, excludeConfig) {
+        // console.log("filterParam-->", filterParam)
         return new Promise((res, rej) => {
             var cmdToGetFile = spawn(`cd "$@" && ls ${self.wmioPath}`, {
                 shell: true
@@ -16,7 +26,7 @@ module.exports = {
             cmdToGetFile.stdout.on('data', function (data) {
                 wmioFileName = data.toString().split("\n").filter(Boolean)
                 // console.log("wmioFileName", wmioFileName)
-                if (filterParam && filterParam.length) {
+                if (filterParam && filterParam.length && filterParam[0]) {
                     wmioFileName = wmioFileName.filter(curr => curr.startsWith(filterParam[0]))
                 }
                 if (excludeConfig) {
@@ -173,6 +183,20 @@ module.exports = {
                 return rej(error)
             }
         })
+    },
+    openFileInNanoEditor(filename, param) {
+        let editior = "nano"
+        if (param && Array.isArray(param) && param.length && param[1] == "--code") {
+            editior = "code"
+        }
+
+        let updateCommand = spawn(editior, [`${self.homePath}/${filename}`], {
+            stdio: 'inherit',
+            detached: true
+        })
+        updateCommand.stdout.on("data", function (data) {
+            process.stdout.pipe(data);
+        });
     }
 
 

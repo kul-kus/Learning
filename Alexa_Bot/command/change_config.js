@@ -1,7 +1,5 @@
-var spawn = require('child_process').spawn;
-var inquirer = require('inquirer');
+
 var basefile = "config.json"
-var basepath = "wmio/.connector/"
 var comm = require("./common")
 
 module.exports = {
