@@ -68,6 +68,7 @@ module.exports = {
         }
         return true;
     },
+
     showOptions: function (arr, msg) {
         return new Promise((res, rej) => {
             try {
@@ -111,10 +112,10 @@ module.exports = {
             try {
                 inquirer.prompt(questions).then((answers) => {
                     // console.log(JSON.stringify(answers, null, '  '));
-                    res(answers)
+                    return res(answers)
                 });
             } catch (error) {
-                rej(error)
+                return rej(error)
             }
         })
 

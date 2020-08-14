@@ -78,9 +78,9 @@ module.exports = {
             }
 
 
-            await comm.createFile(newFileName.file_name)
 
             if (selectedOpt.includes("Config file")) {
+                await comm.createFile(newFileName.file_name)
                 await comm.copyFile(`${comm.wmioPath}/config.json`, `${comm.wmioPath}/${newFileName.file_name}`)
                 let cofigData = await comm.readFile(newFileName.file_name)
                 return comm.showMessageOrange("<--- File created Successful !! --->")
@@ -88,15 +88,25 @@ module.exports = {
 
                 let questionsArr = [
                     {
-                        type: 'input',
+                        type: 'json',
                         name: 'data',
                         message: "Enter the new file Raw Data",
                     },
                 ]
                 var newFileData = await comm.getInput(questionsArr)
-                fs.writeFileSync(`${comm.homePath}/${newFileName.file_name}`, newFileData.data, 'utf8');
+
+                await comm.createFile(newFileName.file_name)
+                if (comm.checkJson(newFileData.data)) {
+                    newFileData.data = comm.convertJson(newFileData.data)
+                    fs.writeFileSync(`${comm.homePath}/${newFileName.file_name}`, JSON.stringify(newFileData.data, null, 2), 'utf8');
+                } else {
+                    fs.writeFileSync(`${comm.homePath}/${newFileName.file_name}`, newFileData.data, 'utf8');
+                }
+
                 return comm.showMessageOrange("<--- File created Successful !! --->")
             } else {
+
+                await comm.createFile(newFileName.file_name)
                 return comm.openFileInNanoEditor(newFileName.file_name, param)
             }
 
@@ -155,21 +165,33 @@ module.exports = {
         // }
     },
 
-    rename: async function (filtetParam) {
+    rename: async function (param) {
         try {
-            let wmioFileName = await comm.getFileList(filtetParam, true)
+            let wmioFileName = await comm.getFileList(param, true)
             if (wmioFileName.length) {
                 let selectedOpt = await comm.showOptions(wmioFileName, "Select the File to rename.")
                 if (selectedOpt != "config.json") {
 
-                    let questionsArr = [
-                        {
-                            type: 'input',
-                            name: 'file_name',
-                            message: "Enter the new file Name",
-                        },
-                    ]
-                    let newFileName = await comm.getInput(questionsArr)
+                    let newFileName
+
+                    if (param && Array.isArray(param) && param.length && param[1]) {
+                        let regex = /^(--)/gi
+                        if (param[1].match(regex)) {
+                            param[1] = param[1].replace(regex, "")
+                        }
+                        newFileName = {}
+                        newFileName["file_name"] = param[1]
+                    } else {
+                        let questionsArr = [
+                            {
+                                type: 'input',
+                                name: 'file_name',
+                                message: "Enter the new file Name",
+                            },
+                        ]
+                        newFileName = await comm.getInput(questionsArr)
+                    }
+
                     if (!newFileName.file_name) {
                         return comm.showError("Enter valid File Name.")
                     }
