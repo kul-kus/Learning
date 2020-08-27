@@ -14,7 +14,7 @@ module.exports = {
         cmdToGetFile.stdout.on('data', function (data) {
             try {
                 let cpyToPath = data.toString().trim()
-                cpyToFilefile = "common_fun.js"
+                let cpyToFilefile = "common_fun.js"
                 let final_path = `${cpyToPath}/${cpyToFilefile}`
                 final_path = final_path.replace(/(\s+)/g, '\\$1')
 

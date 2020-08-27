@@ -6,6 +6,9 @@ var config = require("./../config")
 module.exports = {
     "homePath": config.homePath,
     "wmioPath": config.wmioPath,
+    "gitPath": config.gitPath,
+    "alexa_code": config.alexa_code,
+
 
     checkIfFileExist: function (fileName) {
         return new Promise(async function (res, rej) {
@@ -17,17 +20,15 @@ module.exports = {
             }
         })
     },
-    getFileList: function (filterParam, excludeConfig) {
-        // console.log("filterParam-->", filterParam)
+    getFileList: function (filterParam, excludeConfig, command) {
         return new Promise((res, rej) => {
-            var cmdToGetFile = spawn(`cd "$@" && ls ${self.wmioPath}`, {
+            var cmdToGetFile = spawn(`cd "$@" && ls ${(command && command == "git") ? (self.gitPath) : (self.wmioPath)}`, {
                 shell: true
             });
             cmdToGetFile.stdout.on('data', function (data) {
                 wmioFileName = data.toString().split("\n").filter(Boolean)
-                // console.log("wmioFileName", wmioFileName)
                 if (filterParam && filterParam.length && filterParam[0]) {
-                    wmioFileName = wmioFileName.filter(curr => curr.startsWith(filterParam[0]))
+                    wmioFileName = wmioFileName.filter(curr => curr.toLowerCase().startsWith(filterParam[0].toLowerCase()))
                 }
                 if (excludeConfig) {
                     wmioFileName = wmioFileName.filter(e => e !== 'config.json' && e !== 'alias.json');
@@ -185,13 +186,24 @@ module.exports = {
             }
         })
     },
-    openFileInNanoEditor(filename, param) {
+    openFileInNanoEditor(filename, param, command) {
         let editior = "nano"
         if (param && Array.isArray(param) && param.length && param[1] == "--code") {
             editior = "code"
         }
 
-        let updateCommand = spawn(editior, [`${self.homePath}/${filename}`], {
+        let tempPath = `${self.homePath}/${filename}`
+        if (command && command == "git") {
+            tempPath = `${self.gitPath}/${filename}`
+        }
+        if (command && command == "config") {
+            tempPath = self.homePath
+        }
+        if (command && command == "code") {
+            tempPath = self.alexa_code
+        }
+
+        let updateCommand = spawn(editior, [tempPath], {
             stdio: 'inherit',
             detached: true
         })

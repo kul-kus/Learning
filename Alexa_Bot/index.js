@@ -51,10 +51,24 @@ else if (command == "create_common") {
   return commandFun.update(parameters)
 } else if (command == "create") {
   return commandFun.create(parameters)
-} else if (command == "vscode" || command == "open") {
-  return commandFun.vsCode()
-} else if (command == "rename") {
+} 
+// else if (command == "vscode" || command == "wmio") {
+//   return commandFun.vsCode()
+// } 
+else if (command == "rename") {
   return commandFun.rename(parameters)
+} else if (command == "open") {
+  return require("./command/open").open(parameters)
+} 
+else if (command == "checkout") {
+  return require("./command/checkout").checkout(parameters)
+} 
+// else if (command == "git") {
+//   return require("./command/git").git(parameters)
+// }
+
+ else if (command == "push") {
+  return require("./command/push").push(parameters)
 }
 else {
   help.help()
