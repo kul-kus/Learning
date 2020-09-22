@@ -10,18 +10,26 @@ const stripAnsi = require('strip-ansi');
 
 var currentBranch = ""
 var pwd = ""
+var copyBool = false
+
 
 ///home/kulk@eur.ad.sag/kul/a-my-connector-triggers/git_Irepo/integration-connectors
 
 module.exports = {
-    push: async function (commitMess) {
+    push: async function (filterParam) {
         try {
-            if (commitMess && commitMess.length == 0) {
+            if (filterParam && filterParam.length == 0) {
                 return comm.showError("Please provide valid Commit Message.")
             }
-            if (commitMess && commitMess.length && !commitMess[0]) {
+            if (filterParam && filterParam.length && !filterParam[0]) {
                 return comm.showError("Please provide valid Commit Message.")
             }
+            if (filterParam && filterParam.length && filterParam[1]) {
+                if (filterParam[1] == "--copy" || filterParam[1] == "-c") {
+                    copyBool = true
+                }
+            }
+
 
             pwd = await getCurrentPWD()
             // pwd = "/home/kulk@eur.ad.sag/kul/a-my-connector-triggers/git_Irepo/Kul-Learning/Learning/googleMaps"
@@ -34,15 +42,13 @@ module.exports = {
 
                 let gitStatusData2 = await gitStatus(pwd, "git status -s")
 
-                console.log('\n', chalk.keyword("pink")("Files Changed"))
+                console.log(chalk.keyword("pink")("Files Changed"))
                 console.log(chalk.keyword("grey")(gitStatusData2.join('\n')))
 
                 if (gitStatusData2 && Array.isArray(gitStatusData2) && gitStatusData2.length) {
 
                     let commitFilesList = getAllFilesModified(gitStatusData2)
                     let addStingMess = "git add"
-
-                    console.log()
 
                     let commitFiles = await GetSelctedCommitFiles(commitFilesList)
                     addStingMess += ` ${commitFiles.trim()}`
@@ -51,10 +57,10 @@ module.exports = {
 
                     if (await comm.confirmOptions(`Do you want to push the above Mentioned Changes`)) {
                         await addChanges(pwd, addStingMess)
-                        await commitChanges(pwd, commitMess[0], currentBranch)
+                        await commitChanges(pwd, filterParam[0], currentBranch)
                         await pullChanges(pwd, currentBranch)
-                        await pushChanges(pwd, currentBranch, commitMess[0])
-                        await GetCommlitLogs(pwd, commitMess[0], currentBranch)
+                        await pushChanges(pwd, currentBranch, filterParam[0])
+                        await GetCommlitLogs(pwd, filterParam[0], currentBranch)
                     } else {
                         comm.showMessageOrange("Push process terminated ..")
                     }
@@ -65,10 +71,6 @@ module.exports = {
             } else {
                 return comm.showMessage("No Changes to Commit. :)")
             }
-            // })
-            // })
-
-
         } catch (error) {
             console.log(chalk.keyword("red")(error))
             // comm.showError(error)
@@ -93,8 +95,9 @@ function getCurrentPWD() {
 }
 
 function getAllBranch() {
+    let gitBool = true
     return new Promise((res, rej) => {
-        let getBranch = spawn(`cd ${pwd} "$@" && git branch`, {
+        let getBranch = spawn(`cd ${pwd} "$@" && git branch --all`, {
             shell: true
         });
 
@@ -103,11 +106,17 @@ function getAllBranch() {
             return rej(`Get git branch failed Error-> ${data}`)
         })
 
-        getBranch.stdout.on('data', async function (data) {
-            let regex = /^(\*\ )/gi
+        getBranch.stdout.on('close', function (data) {
+            if (gitBool) {
+                return rej(`Not a Git Repository :(`)
+            }
+        })
 
-            let allBranchName = data.toString().split('\n')
-            allBranchName.filter(curr => Boolean(curr)).map(curr => {
+        getBranch.stdout.on('data', async function (data) {
+            gitBool = false
+            let regex = /^(\*\ )/gi
+            let allBranchName = formatData(data)
+            let allBranchNameTemp = allBranchName.filter(curr => Boolean(curr)).map(curr => {
                 curr = curr.trim()
                 if (curr.match(regex)) {
                     curr = curr.replace(regex, "")
@@ -116,7 +125,7 @@ function getAllBranch() {
                 return curr
             })
 
-            return res(allBranchName)
+            return res(allBranchNameTemp)
         })
     })
 }
@@ -132,6 +141,7 @@ function gitStatus(pwd, command) {
             return rej(`Git Status failed Error-> ${data}`)
         })
         getStatus.stdout.on('data', async function (data) {
+
             return res(formatData(data))
         })
 
@@ -297,7 +307,16 @@ function GetCommlitLogs(pwd, commitMessage, currentBranch) {
                 console.log(chalk.white("Author: ", commitObj['author']))
                 console.log("")
 
-                comm.copyStringToClipBoard(JSON.stringify(commitObj))
+                let strCopy = `
+                    Commit ID: ${commitObj["commit"]}
+                    Branch: ${commitObj['branch']}
+                    Message: ${commitObj['message']}
+                    Date ${commitObj['date']}
+                    Author ${commitObj['author']}
+                `
+                if (copyBool) {
+                    comm.copyStringToClipBoard(strCopy)
+                }
                 return res("Commit Logs")
 
             })

@@ -3,10 +3,6 @@
 var comm = require("./common")
 var spawn = require('child_process').spawn;
 let chalk = require("chalk")
-var inquirer = require('inquirer');
-const stripAnsi = require('strip-ansi');
-
-
 
 var currentBranch = ""
 var pwd = ""
@@ -45,8 +41,9 @@ function getCurrentPWD() {
 }
 
 function getAllBranch() {
+    let gitBool = true
     return new Promise((res, rej) => {
-        let getBranch = spawn(`cd ${pwd} "$@" && git branch`, {
+        let getBranch = spawn(`cd ${pwd} "$@" && git branch --all`, {
             shell: true
         });
 
@@ -55,11 +52,17 @@ function getAllBranch() {
             return rej(`Get git branch failed Error-> ${data}`)
         })
 
-        getBranch.stdout.on('data', async function (data) {
-            let regex = /^(\*\ )/gi
+        getBranch.stdout.on('close', function (data) {
+            if (gitBool) {
+                return rej(`Not a Git Repository :(`)
+            }
+        })
 
-            let allBranchName = data.toString().split('\n')
-            allBranchName.filter(curr => Boolean(curr)).map(curr => {
+        getBranch.stdout.on('data', async function (data) {
+            gitBool = false
+            let regex = /^(\*\ )/gi
+            let allBranchName = formatData(data)
+            let allBranchNameTemp = allBranchName.filter(curr => Boolean(curr)).map(curr => {
                 curr = curr.trim()
                 if (curr.match(regex)) {
                     curr = curr.replace(regex, "")
@@ -68,7 +71,7 @@ function getAllBranch() {
                 return curr
             })
 
-            return res(allBranchName)
+            return res(allBranchNameTemp)
         })
     })
 }
