@@ -3,7 +3,7 @@ s
 s
 sss
 ssdd
-s
+ss
 s
 kulddep
 s
