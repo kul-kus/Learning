@@ -4,7 +4,9 @@
   "description": "",
   "bin": {
     "siri": "./index.js",
-    "alexa": "./index.js"
+    "alexa": "./index.js",
+    "please": "./index.js",
+    "plz": "./index.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -16,6 +18,9 @@
     "chalk": "^4.0.0",
     "chalk-pipe": "^4.0.0",
     "cli-table3": "^0.6.0",
-    "inquire": "^0.4.8"
+    "clipboardy": "^2.3.0",
+    "inquire": "^0.4.8",
+    "omelette": "^0.4.12",
+    "strip-ansi": "^6.0.0"
   }
 }

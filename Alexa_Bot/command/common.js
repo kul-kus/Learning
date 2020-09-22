@@ -2,12 +2,17 @@ let chalk = require("chalk")
 var inquirer = require('inquirer');
 var spawn = require('child_process').spawn;
 var config = require("./../config")
+const clipboardy = require('clipboardy');
 
 module.exports = {
     "homePath": config.homePath,
     "wmioPath": config.wmioPath,
     "gitPath": config.gitPath,
     "alexa_code": config.alexa_code,
+
+    copyStringToClipBoard: function (str) {
+        clipboardy.writeSync(str);
+    },
 
 
     checkIfFileExist: function (fileName) {
@@ -19,6 +24,9 @@ module.exports = {
                 return rej(false)
             }
         })
+    },
+    addEscapeToSpace: function (str) {
+        return str.replace(/(\s+)/g, '\\$1')
     },
     getFileList: function (filterParam, excludeConfig, command) {
         return new Promise((res, rej) => {

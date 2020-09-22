@@ -25,7 +25,8 @@ module.exports = {
                         shell: true
                     });
                     cmdToGetPWD.stdout.on('data', function (data) {
-                        let pwd = data.toString().trim()
+                        let pwd = comm.addEscapeToSpace(data.toString().trim())
+                        console.log("pwd", pwd)
                         var cmdToExecDeployCommand = spawn(`cd ${pwd} "$@" && wmio deploy`, {
                             shell: true
                         });
@@ -40,6 +41,18 @@ module.exports = {
                             } else {
                                 comm.showMessageRandom(data, "green")
                             }
+                        })
+                        cmdToExecDeployCommand.stdout.on('close', function (data) {
+                            console.log("close", data)
+
+                        })
+                        cmdToExecDeployCommand.stdout.on("end", function (data) {
+                            console.log("end", data)
+
+                        })
+                        cmdToExecDeployCommand.stdout.on("error", function (data) {
+                            console.log("error", data)
+
                         })
                     })
                     //---------------------------------

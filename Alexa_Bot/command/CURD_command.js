@@ -16,6 +16,73 @@ module.exports = {
             return comm.showError(error)
         }
     },
+    nightmode: async function (param) {
+        if (param && Array.isArray(param) && param.length) {
+            param = param[0]
+        }
+        else {
+            param = await comm.showOptions(["Enable", "Disable"], "Select the option for Night Mode.")
+        }
+        param = param.toLowerCase()
+        let status = "false"
+        if (param == "on" || param == "true" || param == true || param == "enable") {
+            status = "true"
+        }
+        try {
+            let readCommand = spawn(`gsettings set org.gnome.settings-daemon.plugins.color night-light-enabled ${status}`, {
+                shell: true
+            })
+            readCommand.stdout.on('data', function (data) {
+            });
+        } catch (error) {
+            return comm.showError(error)
+        }
+    },
+    store: async function () {
+        try {
+            var cmdToGetPWD = spawn(`pwd`, {
+                shell: true
+            });
+
+            cmdToGetPWD.stdout.on('data', function (data) {
+                let pwd = comm.addEscapeToSpace(data.toString().trim())
+                // console.log("pwd", pwd)
+                var getBranch = spawn(`cd ${pwd} "$@" && git config credential.helper store`, {
+                    shell: true
+                });
+
+                getBranch.stdout.on('data', function (data) {
+
+                })
+            })
+        } catch (error) {
+            return comm.showError(error)
+        }
+    },
+    restart: async function () {
+        // systemctl poweroff -i
+        try {
+            let shutdown = spawn(`systemctl reboot`, {
+                shell: true
+            })
+            shutdown.stdout.on('data', function (data) {
+            });
+        } catch (error) {
+            return comm.showError(error)
+        }
+    },
+    shutdown: async function () {
+        // systemctl poweroff -i
+        try {
+            let shutdown = spawn(`systemctl poweroff -i`, {
+                shell: true
+            })
+            shutdown.stdout.on('data', function (data) {
+            });
+        } catch (error) {
+            return comm.showError(error)
+        }
+    },
 
     show: async function (command, filtetParam) {
         try {

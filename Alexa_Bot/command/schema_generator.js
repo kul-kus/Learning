@@ -1,16 +1,25 @@
 
 var comm = require("./common")
+const clipboardy = require('clipboardy');
+
 
 
 try {
     function callBuildSchema(data) {
 
         console.log("")
-        comm.showMessageOrange(JSON.stringify({
+
+        let opschema = JSON.stringify({
             "title": "output",
             "type": "object",
             "properties": buildSchema(data)
-        }))
+        })
+        clipboardy.writeSync(JSON.stringify({
+            "title": "output",
+            "type": "object",
+            "properties": buildSchema(data)
+        }, null, 2));
+        comm.showMessageOrange(opschema)
 
     }
 
@@ -127,7 +136,7 @@ try {
     }
 } catch (e) {
 
-    return  comm.showError(e.stack)
+    return comm.showError(e.stack)
 }
 
 module.exports = {

@@ -1,7 +1,8 @@
 var inquirer = require('inquirer');
 var spawn = require('child_process').spawn;
 var comm = require("./common.js")
-
+let chalk = require("chalk")
+const stripAnsi = require('strip-ansi');
 module.exports = {
     migrate: function (command) {
         try {
@@ -14,25 +15,47 @@ module.exports = {
                 let fileName = "alias.json"
 
                 if (wmioFileName.includes(fileName)) {
-                    let data = await self.read_file(fileName)
-                    let selectedTenant = await comm.showOptions(Object.keys(data), "Select The Tenant to deploy")
-                    console.log("selectedTenant", selectedTenant, data[selectedTenant])
+                    let readData = await self.read_file(fileName)
+                    let showOptionsArr = []
+                    Object.keys(readData).forEach(curr => {
+                        let arrStr = ""
+                        arrStr += chalk.keyword("lightgreen")(`${curr}`)
+                        arrStr += chalk.keyword("grey")(" :")
+                        let tenantArr = readData[curr].split(" ")
+                        if (tenantArr && tenantArr[2]) {
+                            let tenantUrl = tenantArr[2]
+                            arrStr += chalk.keyword("grey")(` Url: `)
+                            arrStr += `${tenantUrl}`
+                        } if (tenantArr && tenantArr[3]) {
+                            let tenantEmail = tenantArr[3]
+                            arrStr += chalk.keyword("grey")(` Email: `)
+                            arrStr += ` ${tenantEmail}`
+                        }
+                        showOptionsArr.push(arrStr)
+                    })
+                    let selectedTenant = await comm.showOptions(showOptionsArr, "Select The Tenant to deploy")
 
                     comm.showMessageRandom(`------ Migration started on ${selectedTenant} ------`, "lightblue")
-                    var cmdToExecMigrate = spawn(data[selectedTenant], {
-                        shell: true
-                    });
-                    cmdToExecMigrate.stdout.on('data', function (data) {
-                        data = data.toString()
-                        if (data.includes("[ERROR]")) {
-                            return comm.showError(data)
-                        }
-                        else if (data.includes("[INFO]") && data.includes("successfully")) {
-                            comm.showMessageOrange(data)
-                        } else {
-                            comm.showMessageRandom(data, "green")
-                        }
-                    })
+                    selectedTenant = stripAnsi(selectedTenant).trim()
+                    let tenantLabel = selectedTenant.split(" : ")[0]
+                    if (readData[tenantLabel]) {
+                        var cmdToExecMigrate = spawn(readData[tenantLabel], {
+                            shell: true
+                        });
+                        cmdToExecMigrate.stdout.on('data', function (data) {
+                            data = data.toString()
+                            if (data.includes("[ERROR]")) {
+                                return comm.showError(data)
+                            }
+                            else if (data.includes("[INFO]") && data.includes("successfully")) {
+                                comm.showMessageOrange(data)
+                            } else {
+                                comm.showMessageRandom(data, "green")
+                            }
+                        })
+                    } else {
+                        return comm.showMessage("Unable to find Tenant Details.")
+                    }
                 } else {
                     return comm.showError("Unable to find file Alias.json")
                 }
@@ -42,8 +65,6 @@ module.exports = {
         } catch (error) {
             return comm.showError(error)
         }
-
-        // }
     },
     read_file(fileName) {
         return new Promise((res, rej) => {

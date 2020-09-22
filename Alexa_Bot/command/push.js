@@ -7,11 +7,14 @@ var inquirer = require('inquirer');
 const stripAnsi = require('strip-ansi');
 
 
+
+var currentBranch = ""
+var pwd = ""
+
 ///home/kulk@eur.ad.sag/kul/a-my-connector-triggers/git_Irepo/integration-connectors
 
 module.exports = {
     push: async function (commitMess) {
-        console.log("commit Message-> ", commitMess[0])
         try {
             if (commitMess && commitMess.length == 0) {
                 return comm.showError("Please provide valid Commit Message.")
@@ -20,293 +23,287 @@ module.exports = {
                 return comm.showError("Please provide valid Commit Message.")
             }
 
+            pwd = await getCurrentPWD()
+            // pwd = "/home/kulk@eur.ad.sag/kul/a-my-connector-triggers/git_Irepo/Kul-Learning/Learning/googleMaps"
+            let allBranchName = await getAllBranch()
 
-            var cmdToGetPWD = spawn(`pwd`, {
-                shell: true
-            });
+            console.log(chalk.keyword("lightblue")("Current Branch -> ") + chalk.keyword("red")(currentBranch))
+            let gitSatusData = await gitStatus(pwd, "git status")
 
-            cmdToGetPWD.stdout.on('data', function (data) {
-                let pwd = data.toString().trim()
-                // let pwd = "/home/kulk@eur.ad.sag/kul/a-my-connector-triggers/git_Irepo/Kul-Learning/Learning"
-                console.log("pwd", pwd)
+            if (gitSatusData && Array.isArray(gitSatusData) && gitSatusData.length && gitSatusData.indexOf("nothing to commit, working tree clean") == -1) {
 
-                var getBranch = spawn(`cd ${pwd} "$@" && git branch`, {
-                    shell: true
-                });
+                let gitStatusData2 = await gitStatus(pwd, "git status -s")
 
-                getBranch.stdout.on('data', function (data) {
-                    let regex = /^(\*\ )/gi
-                    let currentBranch = ""
-                    let allBranchName = data.toString().split('\n')
-                    allBranchName = allBranchName.filter(curr => Boolean(curr)).map(curr => {
-                        curr = curr.trim()
-                        if (curr.match(regex)) {
-                            curr = curr.replace(regex, "")
-                            currentBranch = curr
-                        }
-                        return curr
-                    })
+                console.log('\n', chalk.keyword("pink")("Files Changed"))
+                console.log(chalk.keyword("grey")(gitStatusData2.join('\n')))
 
-                    // console.log("allBranchName ", allBranchName)
-                    // comm.showMessageOrange(" Current Branch -> " + currentBranch)
-                    console.log(chalk.keyword("lightblue")("Current Branch -> ") + chalk.keyword("red")(currentBranch))
-                    // data = data.toString().split('\n')
+                if (gitStatusData2 && Array.isArray(gitStatusData2) && gitStatusData2.length) {
 
+                    let commitFilesList = getAllFilesModified(gitStatusData2)
+                    let addStingMess = "git add"
 
-                    var getIfCommits = spawn(`cd ${pwd} "$@" && git status`, {
-                        shell: true
-                    });
+                    console.log()
 
-                    getIfCommits.stdout.on('data', function (data) {
-                        data = formatData(data)
-                        if (data && Array.isArray(data) && data.length && data.indexOf("nothing to commit, working tree clean") == -1) {
-                            var getStatus = spawn(`cd ${pwd} "$@" && git status -s`, {
-                                shell: true
-                            });
-                            getStatus.stdout.on('data', async function (data) {
-                                data = formatData(data)
+                    let commitFiles = await GetSelctedCommitFiles(commitFilesList)
+                    addStingMess += ` ${commitFiles.trim()}`
 
-                                console.log('\n', chalk.keyword("pink")("Files Changed"))
-                                console.log(chalk.keyword("grey")(data.join('\n'), '\n'))
+                    console.log(chalk.keyword("orange")("Add Command Generated:"), addStingMess)
 
-                                if (data && Array.isArray(data) && data.length) {
-                                    let commitModified = data.filter(curr => curr.startsWith("M "))
-                                    let commitModified1 = data.filter(curr => curr.startsWith("MM "))
+                    if (await comm.confirmOptions(`Do you want to push the above Mentioned Changes`)) {
+                        await addChanges(pwd, addStingMess)
+                        await commitChanges(pwd, commitMess[0], currentBranch)
+                        await pullChanges(pwd, currentBranch)
+                        await pushChanges(pwd, currentBranch, commitMess[0])
+                        await GetCommlitLogs(pwd, commitMess[0], currentBranch)
+                    } else {
+                        comm.showMessageOrange("Push process terminated ..")
+                    }
+                } else {
+                    return comm.showMessage("No Changes to Commit. :)")
+                }
 
-                                    commitModified = commitModified.concat(commitModified1)
+            } else {
+                return comm.showMessage("No Changes to Commit. :)")
+            }
+            // })
+            // })
 
-                                    // console.log("Modified Files", commitModified)
-                                    let commitDeleted = data.filter(curr => curr.startsWith("D "))
-                                    // console.log("Deleted Files", commitDeleted)
-                                    let commitAdded = data.filter(curr => curr.startsWith("??"))
-                                    // console.log("Added Files", commitAdded)
-
-                                    console.log("")
-                                    // comm.showMessageRandom("List of changes made to Files.", "cyan")
-                                    let commitFilesList = []
-                                    let addStingMess = "git add"
-
-                                    if (commitAdded.length) {
-                                        commitAdded.forEach(curr => {
-                                            curr = curr.replace("?? ", "")
-                                            // console.log(chalk.bold.magenta("Added:    "), curr)
-                                            // addStingMess += ` ${curr}`
-                                            commitFilesList.push({
-                                                name: chalk.keyword("magenta")(" Added: ") + curr,
-                                            })
-                                        })
-                                    }
-                                    if (commitModified.length) {
-                                        commitModified.forEach(curr => {
-                                            curr = curr.replace("M ", "")
-                                            // console.log(chalk.keyword('lightgreen')("Modified: "), curr)
-                                            // addStingMess += ` ${curr}`
-
-                                            commitFilesList.push({
-                                                name: chalk.keyword("lightgreen")(" Modified: ") + curr,
-                                            })
-
-                                        })
-                                    }
-                                    if (commitDeleted.length) {
-                                        commitDeleted.forEach(curr => {
-                                            curr = curr.replace("D ", "")
-                                            // console.log(chalk.keyword('brown')("Deleted:  "), curr)
-                                            // addStingMess += ` ${curr}`
-
-                                            commitFilesList.push({
-                                                name: chalk.keyword("brown")(" Deleted: ") + curr,
-                                            })
-                                        })
-                                    }
-
-                                    console.log()
-                                    // console.log(commitFilesList)
-
-                                    let commitFiles = await GetCommitFiles(commitFilesList)
-                                    addStingMess += ` ${commitFiles.trim()}`
-                                    // console.log("Generated Add Command->", typeof addStingMess, addStingMess, addStingMess.length)
-                                    // console.log("Generated Add addStingMess1=>", typeof addStingMess, addStingMess.trim(), addStingMess.trim().length)
-                                    // addStingMess1 = addStingMess1.toString()
-                                    // addStingMess = addStingMess
-                                    // git add googleMaps/common_fun.js
-
-                                    console.log(chalk.keyword("orange")("Add Command Generated:"), addStingMess)
-
-                                    if (await comm.confirmOptions(`Do you want to push the above Mentioned Changes`)) {
-
-                                        //------------------code to push the changes to repo--------------
-                                        console.log(chalk.keyword("magenta")("Command Initiated: "), addStingMess)
-
-                                        var addChanges = spawn(`cd ${pwd} "$@" && ${addStingMess}`, {
-                                            shell: true
-                                        });
-                                        addChanges.stdout.on('data', async function (data) {
-                                            data = formatData(data)
-                                            console.log("Git add Data: ", data)
-                                        })
-                                        addChanges.stdout.on('error', async function (error) {
-                                            return comm.showError(error)
-                                        })
-                                        addChanges.stdout.on('close', async function (cdata) {
-                                            //------------------------- commit the changes----------
-                                            var commitChanges = spawn(`cd ${pwd} "$@" && git commit -m ${commitMess[0]}`, {
-                                                shell: true
-                                            });
-                                            commitChanges.stdout.on('error', async function (error) {
-                                                return comm.showError(error)
-                                            })
-                                            commitChanges.stdout.on('data', async function (data) {
-                                                data = formatData(data)
-                                                console.log("")
-                                                if (data.indexOf("no changes added to commit") > -1) {
-                                                    console.log(chalk.green("No changes added to commit.", '\n'))
-
-                                                } else {
-                                                    console.log(chalk.keyword("lightgreen")("Git Commit Data: "))
-                                                    console.log(chalk.keyword("lightblue")(data.join('\n')))
-                                                    commitChanges.stdout.on('close', async function (data) {
-                                                        data = formatData(data)
-                                                        console.log(chalk.keyword("cyan")("Code Commited Successfully on branch"), chalk.keyword("red")(currentBranch))
-
-                                                        //--------------- pull latest changes------------
-                                                        // cd ${pwd} "$@" && git pull origin ${selectedBranch}
-                                                        var pullChanges = spawn(`cd ${pwd} "$@" && git pull origin ${currentBranch}`, {
-                                                            shell: true
-                                                        });
-
-                                                        pullChanges.stdout.on('error', async function (error) {
-                                                            return comm.showError(error)
-                                                        })
-
-                                                        // let pullData
-                                                        pullChanges.stdout.on('data', function (pullData) {
-                                                            pullData = formatData(pullData)
-
-                                                            console.log("")
-                                                            console.log(chalk.keyword("yellow")("pullData: "), chalk.keyword("lightblue")(pullData.join(". ")))
-
-                                                            if (pullData && Array.isArray(pullData) && pullData.length && pullData.indexOf("Already up to date.") > -1) {
-                                                                pullChanges.stdout.on('close', function (data) {
-
-                                                                    console.log(chalk.keyword("yellow")(`Pull Completed Successful for Branch`), chalk.keyword("red")(currentBranch))
-                                                                    //------------------Push the changes to the repo------------------
-
-                                                                    var pushChanges = spawn(`cd ${pwd} "$@" && git push origin ${currentBranch}`, {
-                                                                        shell: true
-                                                                    });
-
-                                                                    pushChanges.stdout.on('error', function (error) {
-                                                                        console.log(chalk.red("Push Error: ", error))
-                                                                        return comm.showError(error)
-                                                                    })
-                                                                    pushChanges.stdout.on('data', function (data) {
-                                                                        data = formatData(data)
-                                                                        console.log("Push Data: ", data)
-                                                                    })
-                                                                    pushChanges.stdout.on('close', function (data) {
-                                                                        data = formatData(data)
-
-                                                                        console.log("")
-                                                                        comm.showMessageOrange("Push Completed Successfully :)")
-
-                                                                        var commitLog = spawn(`cd ${pwd} "$@" && git log -1`, {
-                                                                            shell: true
-                                                                        });
-                                                                        commitLog.stdout.on('error', function (error) {
-                                                                            console.log(chalk.red("git Log Error: ", error))
-                                                                            return comm.showError(error)
-                                                                        })
-
-                                                                        commitLog.stdout.on('data', function (logdata) {
-                                                                            // console.log("logdata", logdata.toString())
-                                                                            logdata = formatData(logdata)
-                                                                            // console.log("logdata", logdata)
-                                                                            commitLog.stdout.on('close', function (data) {
-
-                                                                                let commitObj = {
-                                                                                    "commit": "",
-                                                                                    "branch": currentBranch,
-                                                                                    "message": commitMess[0],
-                                                                                    "date": "",
-                                                                                    "author": ""
-                                                                                }
-
-                                                                                logdata.forEach(curr => {
-                                                                                    if (curr.startsWith("commit")) {
-                                                                                        commitObj["commit"] = curr.replace("commit ", "")
-                                                                                    }
-                                                                                    if (curr.startsWith("Date:")) {
-                                                                                        commitObj["date"] = curr.replace("Date: ", "")
-                                                                                        commitObj["date"] = commitObj["date"].trim()
-                                                                                    }
-                                                                                    if (curr.startsWith("Author:")) {
-                                                                                        commitObj["author"] = curr.replace("author:", "")
-                                                                                        commitObj["author"] = commitObj["author"].trim()
-                                                                                    }
-
-                                                                                })
-                                                                                console.log("")
-                                                                                console.log(chalk.keyword("magenta").bold("-- Commit Log Data --"))
-                                                                                console.log(chalk.white("Commit ID: ", commitObj["commit"]))
-                                                                                console.log(chalk.white("Branch: ", commitObj['branch']))
-                                                                                console.log(chalk.white("Message: ", commitObj['message']))
-                                                                                console.log(chalk.white("Date: ", commitObj['date']))
-                                                                                console.log(chalk.white("Author: ", commitObj['author']))
-                                                                                console.log("")
-                                                                            })
-
-                                                                        })
-
-
-                                                                    })
-
-                                                                })
-                                                            }
-                                                            // else {
-
-                                                            // }
-                                                        })
-
-                                                    })
-                                                }
-
-
-                                            })
-
-
-                                        })
-                                        // addChanges.stdout.on('end', async function (error) {
-                                        //     console.log("---------------2---------")
-                                        //     // return comm.showError(error)
-                                        // })
-
-                                        //----------------------------------------------------------------
-                                    } else {
-                                        comm.showMessageOrange("Push process terminated ..")
-                                    }
-                                } else {
-                                    return comm.showMessage("No Changes to Commit. :)")
-                                }
-                            })
-                            getStatus.stdout.on('error', function (data) {
-                                console.log("errro", data)
-                            })
-                        } else {
-                            return comm.showMessage("No Changes to Commit. :)")
-                        }
-                    })
-                })
-            })
 
         } catch (error) {
-            console.log("error", error)
+            console.log(chalk.keyword("red")(error))
             // comm.showError(error)
         }
     }
 
 }
 
+function getCurrentPWD() {
+    return new Promise((res, rej) => {
+        var cmdToGetPWD = spawn(`pwd`, {
+            shell: true
+        });
+        cmdToGetPWD.stdout.on("error", function (error) {
+            return rej(`Unbale to Fetch Current Working Directory Error-> ${error}`)
+        })
+        cmdToGetPWD.stdout.on('data', function (data) {
+            let pwd = comm.addEscapeToSpace(data.toString().trim())
+            return res(pwd)
+        })
+    })
+}
+
+function getAllBranch() {
+    return new Promise((res, rej) => {
+        let getBranch = spawn(`cd ${pwd} "$@" && git branch`, {
+            shell: true
+        });
+
+        getBranch.stdout.on('error', function (data) {
+            console.log("error", data)
+            return rej(`Get git branch failed Error-> ${data}`)
+        })
+
+        getBranch.stdout.on('data', async function (data) {
+            let regex = /^(\*\ )/gi
+
+            let allBranchName = data.toString().split('\n')
+            allBranchName.filter(curr => Boolean(curr)).map(curr => {
+                curr = curr.trim()
+                if (curr.match(regex)) {
+                    curr = curr.replace(regex, "")
+                    currentBranch = curr
+                }
+                return curr
+            })
+
+            return res(allBranchName)
+        })
+    })
+}
+function gitStatus(pwd, command) {
+    return new Promise((res, rej) => {
+
+        var getStatus = spawn(`cd ${pwd} "$@" && ${command}`, {
+            shell: true
+        });
+
+        getStatus.stdout.on('error', function (data) {
+            console.log("error", data)
+            return rej(`Git Status failed Error-> ${data}`)
+        })
+        getStatus.stdout.on('data', async function (data) {
+            return res(formatData(data))
+        })
+
+    })
+}
+
+
+function addChanges(pwd, addStingMess) {
+    return new Promise((res, rej) => {
+        console.log(chalk.keyword("magenta")("Command Initiated: "), addStingMess)
+
+        var addChanges = spawn(`cd ${pwd} "$@" && ${addStingMess}`, {
+            shell: true
+        });
+        addChanges.stdout.on('data', async function (data) {
+            data = formatData(data)
+            console.log("Git add Data: ", data)
+        })
+        addChanges.stdout.on('error', async function (error) {
+            comm.showError(error)
+            return rej(error)
+
+        })
+        addChanges.stdout.on('close', async function (cdata) {
+            //------------------------- commit the changes----------
+            return res(cdata)
+        })
+    })
+}
+
+function commitChanges(pwd, commitMess, currentBranch) {
+    return new Promise((res, rej) => {
+        var commitChanges = spawn(`cd ${pwd} "$@" && git commit -m "${commitMess}"`, {
+            shell: true
+        });
+        commitChanges.stdout.on('error', async function (error) {
+            comm.showError(error)
+            return rej(error)
+
+        })
+        commitChanges.stdout.on('data', async function (data) {
+            data = formatData(data)
+            console.log("")
+            if (data.indexOf("no changes added to commit") > -1) {
+                console.log(chalk.green("No changes added to commit.", '\n'))
+
+            } else {
+                console.log(chalk.keyword("lightgreen")("Git Commit Data: "))
+                console.log(chalk.keyword("lightblue")(data.join('\n')))
+                commitChanges.stdout.on('close', async function (data) {
+                    data = formatData(data)
+                    console.log(chalk.keyword("cyan")("Code Commited Successfully on branch"), chalk.keyword("red")(currentBranch))
+                    return res(data)
+                })
+            }
+        })
+    })
+}
+
+function pullChanges(pwd, currentBranch) {
+    return new Promise((res, rej) => {
+        var pullChanges = spawn(`cd ${pwd} "$@" && git pull origin ${currentBranch}`, {
+            shell: true
+        });
+
+        pullChanges.stdout.on('error', async function (error) {
+            return rej("Git Pull Command Failed Error:" + error)
+            // return comm.showError(error)
+        })
+
+        pullChanges.stdout.on('data', function (pullData) {
+            pullData = formatData(pullData)
+
+            console.log("")
+            console.log(chalk.keyword("lightgreen")("Git Pull Data:"))
+            pullData.forEach(curr => {
+                console.log(chalk.keyword("lightblue")(curr))
+            })
+            console.log("")
+            pullChanges.stdout.on('close', function (data) {
+                console.log(chalk.keyword("yellow")(`Pull Completed Successful for Branch`), chalk.keyword("red")(currentBranch))
+                return res("Pull completed")
+            })
+
+        })
+    })
+
+}
+
+function pushChanges(pwd, currentBranch) {
+    return new Promise((res, rej) => {
+        var pushChanges = spawn(`cd ${pwd} "$@" && git push origin ${currentBranch}`, {
+            shell: true
+        });
+
+        pushChanges.stdout.on('error', function (error) {
+            console.log(chalk.red("Push Error: ", error))
+            // comm.showError(error)
+            return rej(error)
+        })
+        pushChanges.stdout.on('data', function (data) {
+            data = formatData(data)
+            console.log("Push Data: ", data)
+        })
+
+
+        pushChanges.stdout.on('close', function (data) {
+            data = formatData(data)
+
+            console.log("")
+            comm.showMessageOrange("Push Completed Successfully :)")
+            return res("Push Complete")
+
+        })
+    })
+}
+
+function GetCommlitLogs(pwd, commitMessage, currentBranch) {
+    return new Promise((res, rej) => {
+
+        var commitLog = spawn(`cd ${pwd} "$@" && git log -1`, {
+            shell: true
+        });
+        commitLog.stdout.on('error', function (error) {
+            console.log(chalk.red("git Log Error: ", error))
+            comm.showError(error)
+            return rej(error)
+        })
+
+        commitLog.stdout.on('data', function (logdata) {
+            // console.log("logdata", logdata.toString())
+            logdata = formatData(logdata)
+            // console.log("logdata", logdata)
+            commitLog.stdout.on('close', function (data) {
+
+                let commitObj = {
+                    "commit": "",
+                    "branch": currentBranch,
+                    "message": commitMessage,
+                    "date": "",
+                    "author": ""
+                }
+
+                logdata.forEach(curr => {
+                    if (curr.startsWith("commit")) {
+                        commitObj["commit"] = curr.replace("commit ", "")
+                    }
+                    if (curr.startsWith("Date:")) {
+                        commitObj["date"] = curr.replace("Date: ", "")
+                        commitObj["date"] = commitObj["date"].trim()
+                    }
+                    if (curr.startsWith("Author:")) {
+                        commitObj["author"] = curr.replace("author:", "")
+                        commitObj["author"] = commitObj["author"].trim()
+                    }
+                })
+                console.log("")
+                console.log(chalk.keyword("magenta").bold("-- Commit Log Data --"))
+                console.log(chalk.white("Commit ID: ", commitObj["commit"]))
+                console.log(chalk.white("Branch: ", commitObj['branch']))
+                console.log(chalk.white("Message: ", commitObj['message']))
+                console.log(chalk.white("Date: ", commitObj['date']))
+                console.log(chalk.white("Author: ", commitObj['author']))
+                console.log("")
+
+                comm.copyStringToClipBoard(JSON.stringify(commitObj))
+                return res("Commit Logs")
+
+            })
+        })
+    })
+}
 
 function formatData(data) {
     if (data) {
@@ -316,7 +313,57 @@ function formatData(data) {
 }
 
 
-function GetCommitFiles(arr) {
+function getAllFilesModified(data) {
+    let commitFilesList = []
+
+    let commitModified = data.filter(curr => curr.startsWith("M "))
+    let commitModified1 = data.filter(curr => curr.startsWith("MM "))
+
+    commitModified = commitModified.concat(commitModified1)
+    let commitDeleted = data.filter(curr => curr.startsWith("D "))
+    let commitAdded = data.filter(curr => curr.startsWith("??"))
+    let conflict = data.filter(curr => curr.startsWith("UU"))
+
+    console.log("")
+
+
+    if (commitAdded.length) {
+        commitAdded.forEach(curr => {
+            curr = curr.replace("?? ", "")
+            commitFilesList.push({
+                name: chalk.keyword("magenta")(" Added: ") + curr,
+            })
+        })
+    }
+    if (commitModified.length) {
+        commitModified.forEach(curr => {
+            curr = curr.replace("M ", "")
+            commitFilesList.push({
+                name: chalk.keyword("lightgreen")(" Modified: ") + curr,
+            })
+
+        })
+    }
+    if (commitDeleted.length) {
+        commitDeleted.forEach(curr => {
+            curr = curr.replace("D ", "")
+            commitFilesList.push({
+                name: chalk.keyword("brown")(" Deleted: ") + curr,
+            })
+        })
+    }
+    if (conflict.length) {
+        conflict.forEach(curr => {
+            curr = curr.replace("UU ", "")
+            commitFilesList.push({
+                name: chalk.keyword("blue")(" Conflict: ") + curr,
+            })
+        })
+    }
+    return commitFilesList
+}
+
+function GetSelctedCommitFiles(arr) {
     let CommitChoice = [
         new inquirer.Separator('-- Modified Files --'),
     ]
@@ -332,13 +379,11 @@ function GetCommitFiles(arr) {
                     if (answer.length < 1) {
                         return 'You must choose at least one Changes to commit.';
                     }
-
                     return true;
                 },
             },
         ]).then((answers) => {
             if (answers && answers.files && Array.isArray(answers.files) && answers.files.length) {
-                // console.log("GetCommitFiles -> answers", answers)
                 let command = ""
                 answers.files.forEach(curr => {
                     curr = stripAnsi(curr).trim()
@@ -357,7 +402,6 @@ function GetCommitFiles(arr) {
 
             } else {
                 return rej("No Files selected to Commit")
-                // console.log("No Files selected to Commit")
             }
         })
     })

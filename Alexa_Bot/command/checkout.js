@@ -15,7 +15,7 @@ module.exports = {
             });
 
             cmdToGetPWD.stdout.on('data', function (data) {
-                let pwd = data.toString().trim()
+                let pwd = comm.addEscapeToSpace(data.toString().trim())
                 // let pwd = "/home/kulk@eur.ad.sag/kul/a-my-connector-triggers/git_Irepo/Kul-Learning/Learning"
 
                 var getBranch = spawn(`cd ${pwd} "$@" && git branch --all`, {
@@ -39,14 +39,24 @@ module.exports = {
                     // comm.showMessageOrange(" Current Branch -> " + currentBranch)
                     console.log(chalk.keyword("white")("Current Branch -> ") + chalk.keyword("orange")(currentBranch))
                     if (filterParam && filterParam.length && filterParam[0]) {
-                        allBranchName = allBranchName.filter(curr => curr.startsWith(filterParam[0]))
+                        allBranchName = allBranchName.filter(curr => {
+                            if (curr.includes("origin/")) {
+                                let branchArr = curr.split("origin/")
+                                curr = branchArr[branchArr.length - 1]
+                            }
+                            return curr.startsWith(filterParam[0])
+                        })
                     }
 
-                    let selectedBranch = await comm.showOptions(allBranchName, "Select the Branch to checkout.")
+                    let curr = await comm.showOptions(allBranchName, "Select the Branch to checkout.")
 
                     // console.log("selectedBranch", selectedBranch)
+                    if (curr.includes("origin/")) {
+                        let branchArr = curr.split("origin/")
+                        curr = branchArr[branchArr.length - 1]
+                    }
 
-                    var checkoutBranch = spawn(`cd ${pwd} "$@" && git checkout ${selectedBranch}`, {
+                    var checkoutBranch = spawn(`cd ${pwd} "$@" && git checkout ${curr}`, {
                         shell: true
                         // stdio: 'inherit',
                         // detached: true
@@ -59,8 +69,9 @@ module.exports = {
                         console.log(chalk.bgRed("-Checkout Message- " + data.toString()))
                     })
                     checkoutBranch.stdout.on("close", function (data) {
-                        console.log(chalk.keyword("lightblue").bold("Switched to new Branch- ") + chalk.keyword("yellow")(selectedBranch))
+                        console.log(chalk.keyword("lightblue").bold("Switched to new Branch- ") + chalk.keyword("yellow")(curr))
 
+                        comm.copyStringToClipBoard(`git pull origin ${curr}`)
                         // comm.showMessageRandom(`Switched to new Branch-  ${selectedBranch}`, "yellow")
                     })
                     checkoutBranch.stdout.on("error", function (data) {
@@ -70,10 +81,10 @@ module.exports = {
                         comm.showError("Checkout Pause Message-" + data.toString())
                     })
                     checkoutBranch.stdout.on("end", function (data) {
-                    console.log("data", data)
+                        console.log("data", data)
                         // console.log("----------------checkout successfull---------")
 
-                        var pullBranch = spawn(`cd ${pwd} "$@" && git pull origin ${selectedBranch}`, {
+                        var pullBranch = spawn(`cd ${pwd} "$@" && git pull origin ${curr}`, {
                             shell: true
                         });
                         pullBranch.stdout.on('data', function (data) {
