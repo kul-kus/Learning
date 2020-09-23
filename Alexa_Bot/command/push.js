@@ -10,7 +10,7 @@ const stripAnsi = require('strip-ansi');
 
 var currentBranch = ""
 var pwd = ""
-var copyBool = false
+var copyBool = true
 
 
 ///home/kulk@eur.ad.sag/kul/a-my-connector-triggers/git_Irepo/integration-connectors
@@ -72,6 +72,7 @@ module.exports = {
                 return comm.showMessage("No Changes to Commit. :)")
             }
         } catch (error) {
+            console.log("error", error)
             console.log(chalk.keyword("red")(error))
             // comm.showError(error)
         }
@@ -308,11 +309,11 @@ function GetCommlitLogs(pwd, commitMessage, currentBranch) {
                 console.log("")
 
                 let strCopy = `
-                    Commit ID: ${commitObj["commit"]}
-                    Branch: ${commitObj['branch']}
-                    Message: ${commitObj['message']}
-                    Date ${commitObj['date']}
-                    Author ${commitObj['author']}
+                Commit ID: ${commitObj["commit"]}
+                Branch: ${commitObj['branch']}
+                Message: ${commitObj['message']}
+                Date ${commitObj['date']}
+                Author ${commitObj['author']}
                 `
                 if (copyBool) {
                     comm.copyStringToClipBoard(strCopy)

@@ -15,7 +15,9 @@ module.exports = {
 
             pwd = await getCurrentPWD()
             // pwd = "/home/kulk@eur.ad.sag/kul/a-my-connector-triggers/git_Irepo/Kul-Learning/Learning/googleMaps"
+            
             let allBranchName = await getAllBranch()
+            console.log(chalk.keyword("white")("Current Branch -> ") + chalk.keyword("orange")(currentBranch))
             await pullChanges(pwd, currentBranch)
         } catch (error) {
             console.log(chalk.keyword("red")(error))

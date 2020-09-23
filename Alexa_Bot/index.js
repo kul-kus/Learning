@@ -87,8 +87,12 @@ else if (command == "checkout" || command == "check" || command == "chk") {
 }
 else if (command == "pull") {
   return require("./command/pull").pull()
-} else if (command == "push") {
+}
+else if (command == "push") {
   return require("./command/push").push(parameters)
+}
+else if (command == "version" || command == "--version" || command == "-v") {
+  return commandFun.version()
 }
 else if (command == "help" || command == "--help" || command.length == 0) {
   help.help()

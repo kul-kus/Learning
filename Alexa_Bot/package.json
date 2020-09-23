@@ -1,5 +1,5 @@
 {
-  "name": "siri",
+  "name": "alexa",
   "version": "1.0.0",
   "description": "",
   "bin": {
@@ -12,7 +12,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
-  "author": "kuldeep kushwaha",
+  "author": "Kuldeep Kushwaha",
   "license": "ISC",
   "dependencies": {
     "chalk": "^4.0.0",

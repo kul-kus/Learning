@@ -5,6 +5,21 @@ var spawn = require('child_process').spawn;
 
 module.exports = {
 
+    version: async function () {
+        try {
+            let pwd = await comm.getCurrentPWD()
+            let file_data = fs.readFileSync(`${pwd}/package.json`, { encoding: 'utf8', flag: 'r' })
+            if (comm.checkJson()) {
+                file_data = comm.convertJson(file_data)
+            }
+            console.log(`Name: ${file_data["name"]}`)
+            console.log(`Version: ${file_data["version"]}`)
+            console.log(`Author: ${file_data["author"]}`)
+        } catch (error) {
+            comm.showError(error)
+        }
+    },
+    
     vsCode: async function () {
         try {
             let readCommand = spawn(`code ${comm.homePath}`, {
@@ -106,7 +121,7 @@ module.exports = {
     },
 
     create: async function (param) {
-        console.log("param-->", param)
+        // console.log("param-->", param)
         try {
             let questionsArr = [
                 {

@@ -13,7 +13,20 @@ module.exports = {
     copyStringToClipBoard: function (str) {
         clipboardy.writeSync(str);
     },
-
+    getCurrentPWD: async function () {
+        return new Promise((res, rej) => {
+            var cmdToGetPWD = spawn(`pwd`, {
+                shell: true
+            });
+            cmdToGetPWD.stdout.on("error", function (error) {
+                return rej(`Unbale to Fetch Current Working Directory Error-> ${error}`)
+            })
+            cmdToGetPWD.stdout.on('data', function (data) {
+                let pwd = self.addEscapeToSpace(data.toString().trim())
+                return res(pwd)
+            })
+        })
+    },
 
     checkIfFileExist: function (fileName) {
         return new Promise(async function (res, rej) {
@@ -129,7 +142,7 @@ module.exports = {
         })
 
     },
-    readFile(fileName) {
+    readFile: function (fileName) {
         return new Promise((res, rej) => {
             try {
                 let readCommand = spawn(`cd "$@" && cat ${self.wmioPath}/${fileName}`, {
@@ -150,7 +163,7 @@ module.exports = {
             }
         })
     },
-    createFile(fileName) {
+    createFile: function (fileName) {
         return new Promise((res, rej) => {
             try {
                 let createCommand = spawn(`cd "$@" && touch ${self.wmioPath}/${fileName}`, {
@@ -174,7 +187,7 @@ module.exports = {
             }
         })
     },
-    copyFile(source, dest) {
+    copyFile: function (source, dest) {
         return new Promise((res, rej) => {
             try {
                 let copyCommand = spawn(`cd "$@" && cp ${source} ${dest}`, {
@@ -194,32 +207,38 @@ module.exports = {
             }
         })
     },
-    openFileInNanoEditor(filename, param, command) {
-        let editior = "nano"
-        if (param && Array.isArray(param) && param.length && param[1] == "--code") {
-            editior = "code"
-        }
+    openFileInNanoEditor: async function (filename, param, command) {
+        // console.log("param", param)
+        try {
 
-        let tempPath = `${self.homePath}/${filename}`
-        if (command && command == "git") {
-            tempPath = `${self.gitPath}/${filename}`
-        }
-        if (command && command == "config") {
-            tempPath = self.homePath
-        }
-        if (command && command == "code") {
-            tempPath = self.alexa_code
-        }
 
-        let updateCommand = spawn(editior, [tempPath], {
-            stdio: 'inherit',
-            detached: true
-        })
-        updateCommand.stdout.on("data", function (data) {
-            process.stdout.pipe(data);
-        });
+            let editior = "nano"
+            if (param && Array.isArray(param) && param.length && param[1] == "--code") {
+                editior = "code"
+            }
+
+            let tempPath = `${self.homePath}/${filename}`
+            if (command && command == "git") {
+                tempPath = `${self.gitPath}/${filename}`
+            }
+            if (command && command == "config") {
+                tempPath = self.homePath
+            }
+            if (command && command == "code") {
+                // tempPath = await self.getCurrentPWD()
+                tempPath = self.alexa_code
+            }
+
+            let updateCommand = spawn(editior, [tempPath], {
+                stdio: 'inherit',
+                detached: true
+            })
+            updateCommand.stdout.on("data", function (data) {
+                process.stdout.pipe(data);
+            });
+        } catch (error) {
+            // return self.showError(error)
+        }
     }
-
-
 }
 var self = module.exports
