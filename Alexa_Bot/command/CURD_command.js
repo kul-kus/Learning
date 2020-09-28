@@ -1,14 +1,13 @@
 var comm = require("./common.js")
 var fs = require("fs")
 var spawn = require('child_process').spawn;
-
+const path = require("path");
 
 module.exports = {
 
     version: async function () {
         try {
-            let pwd = await comm.getCurrentPWD()
-            let file_data = fs.readFileSync(`${pwd}/package.json`, { encoding: 'utf8', flag: 'r' })
+            let file_data = fs.readFileSync(path.resolve(__dirname, "../package.json"), { encoding: 'utf8', flag: 'r' })
             if (comm.checkJson()) {
                 file_data = comm.convertJson(file_data)
             }
@@ -19,7 +18,7 @@ module.exports = {
             comm.showError(error)
         }
     },
-    
+
     vsCode: async function () {
         try {
             let readCommand = spawn(`code ${comm.homePath}`, {

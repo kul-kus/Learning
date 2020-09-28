@@ -9,6 +9,63 @@ module.exports = {
     "wmioPath": config.wmioPath,
     "gitPath": config.gitPath,
     "alexa_code": config.alexa_code,
+    "basepath": config.basepath,
+    hexColors: {
+        red: "#e88388",
+        yellow: "#dbab78",
+        green: "#a8cc8c",
+        blue: "#71bef2",
+        magenta: "#d290e4",
+        cyan: "#66c2cd",
+        grey: "#b9c0cb"
+    },
+
+    startSpinner: function (oraspinner, message, color) {
+        if (!message) {
+            message = ""
+        }
+        if (color && color != "none") {
+            message = chalk.keyword(color)(message)
+        }
+        oraspinner.text = message
+        oraspinner.start()
+        return oraspinner
+    },
+
+    stopSpinner: function (oraspinner) {
+        oraspinner.stop()
+        return oraspinner
+    },
+
+    stopSpinnerAndShowMessage: function (oraspinner, type, message, color) {
+        if (message && type) {
+            if (color && color != "none" && !color.includes("#")) {
+                message = chalk.keyword(color)(message)
+            }
+            if (color && color.includes("#")) {
+                message = chalk.hex(color)(message)
+            }
+            if (type == "succeed") {
+                message = (!color) ? chalk.keyword("lightgreen")(message) : message
+                oraspinner.succeed(message)
+            }
+            if (type == "fail") {
+                message = (!color) ? chalk.keyword("red")(message) : message
+                oraspinner.fail(message)
+            }
+            if (type == "warn") {
+                message = (!color) ? chalk.keyword("yellow")(message) : message
+                oraspinner.warn(message)
+            }
+            if (type == "info") {
+                message = (!color) ? chalk.keyword("lightblue")(message) : message
+                oraspinner.info(message)
+            }
+        }
+        oraspinner.stop()
+        return oraspinner
+
+    },
 
     copyStringToClipBoard: function (str) {
         clipboardy.writeSync(str);
@@ -62,7 +119,8 @@ module.exports = {
         })
     },
     showError: function (msg) {
-        console.log(chalk.keyword("red")("Error-> " + msg))
+        console.log(chalk.keyword("red")("Error: " + msg))
+        // console.log(chalk.hex("red")("Error:" + msg))
     },
     showMessage: function (msg) {
         console.log(chalk.keyword('brown')(msg))

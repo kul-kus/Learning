@@ -5,7 +5,7 @@ var spawn = require('child_process').spawn;
 
 module.exports = {
     change_config: async function (filterParam) {
-        console.log("filterParam", filterParam)
+        // console.log("filterParam", filterParam)
         try {
             let wmioFileName = await comm.getFileList(filterParam, true)
             if (wmioFileName.length) {

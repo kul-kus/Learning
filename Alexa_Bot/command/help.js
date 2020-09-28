@@ -14,6 +14,15 @@ module.exports = {
         output += '          ██║░░██║███████╗███████╗░██╔╝╚██╗██║░░██║\n';
         output += '          ╚═╝░░╚═╝╚══════╝╚══════╝░╚═╝░░╚═╝╚═╝░░╚═╝\n';
 
+        let esy = ""
+        esy += ' \n';
+        esy += '          ███████╗░██████╗██╗░░░██╗\n';
+        esy += '          ██╔════╝██╔════╝╚██╗░██╔╝\n';
+        esy += '          █████╗░░╚█████╗░░╚████╔╝░\n';
+        esy += '          ██╔══╝░░░╚═══██╗░░╚██╔╝░░\n';
+        esy += '          ███████╗██████╔╝░░░██║░░░\n';
+        esy += '          ╚══════╝╚═════╝░░░░╚═╝░░░\n';
+
         table = new Table({ head: ["Title", "Command", "Info"] });
         table.push(
             ["Who", "alexa whoami", "Shows config file content"],
@@ -36,7 +45,7 @@ module.exports = {
             ["Store Git Credential", "alexa store", "Store Git credentials, (git config credential.helper store)"],
             ["Night Node", "alexa nightmode < on | off >", "Enable Night Node"],
             ["Help", "alexa help or alexa", "List all commands"],
-            ["Version", "alexa --version | alexa -v>", "List version of your alexa bot"]
+            ["Version", "alexa --version | alexa -v", "List version of your alexa bot"]
 
         );
         console.log()

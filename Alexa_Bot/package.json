@@ -17,10 +17,11 @@
   "dependencies": {
     "chalk": "^4.0.0",
     "chalk-pipe": "^4.0.0",
+    "cli-spinners": "^2.4.0",
     "cli-table3": "^0.6.0",
     "clipboardy": "^2.3.0",
     "inquire": "^0.4.8",
-    "omelette": "^0.4.12",
+    "ora": "^5.1.0",
     "strip-ansi": "^6.0.0"
   }
 }
