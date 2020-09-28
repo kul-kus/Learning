@@ -5,6 +5,6 @@ sss
 ssdd
 sd
 sss
-s
+sd
 kulddep
 ss
