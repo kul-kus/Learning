@@ -3,17 +3,17 @@ var comm = require("./common")
 var spawn = require('child_process').spawn;
 let chalk = require("chalk")
 const stripAnsi = require('strip-ansi');
+const cliSpinners = require('cli-spinners').dots
+const oraspinner = require('ora')()
+oraspinner.spinner = cliSpinners
 
 var currentBranch = ""
 var pwd = ""
 
 module.exports = {
     checkout: async function (filterParam) {
-        // console.log("filterParam", filterParam)
-        // console.log("commitMess", filterParam)
         try {
-            pwd = await getCurrentPWD()
-            // pwd = "/home/kulk@eur.ad.sag/kul/a-my-connector-triggers/git_Irepo/Kul-Learning/Learning/googleMaps"
+            pwd = await comm.getCurrentPWD()
             let allBranchName = await getAllBranch(filterParam)
             if (filterParam && filterParam.length && filterParam[0]) {
                 allBranchName = allBranchName.filter(curr => {
@@ -22,12 +22,11 @@ module.exports = {
                     return curr.startsWith(filterParam[0])
                 })
             }
-
             if (allBranchName.length == 0) {
                 console.log(chalk.keyword("red")("No branch found matching your search results :("))
                 console.log(chalk.keyword("orange")("Try 'alexa checkout --all'"))
             } else {
-                console.log(chalk.keyword("white")("Current Branch -> ") + chalk.keyword("orange")(currentBranch))
+                console.log(chalk.keyword("white")("  Current Branch: ") + chalk.keyword("orange")(currentBranch))
 
                 let newBranch = await comm.showOptions(allBranchName, "Select the Branch to checkout.")
                 newBranch = stripAnsi(newBranch).trim()
@@ -36,9 +35,8 @@ module.exports = {
                 await checkout(pwd, newBranch)
                 await pullChanges(pwd, newBranch)
             }
-
         } catch (error) {
-            console.log(chalk.keyword("red")(error))
+            // console.log(chalk.keyword("red")(error))
         }
     }
 
@@ -53,56 +51,47 @@ function splitFromOrigin(str) {
     return str
 }
 
-function getCurrentPWD() {
-    return new Promise((res, rej) => {
-        var cmdToGetPWD = spawn(`pwd`, {
-            shell: true
-        });
-        cmdToGetPWD.stdout.on("error", function (error) {
-            return rej(`Unbale to Fetch Current Working Directory Error-> ${error}`)
-        })
-        cmdToGetPWD.stdout.on('data', function (data) {
-            let pwd = comm.addEscapeToSpace(data.toString().trim())
-            return res(pwd)
-        })
-    })
-}
-
-
 function checkout(pwd, newBranch) {
     return new Promise((res, rej) => {
-
+        comm.startSpinner(oraspinner, "Switching to New Branch", "none")
         var checkoutBranch = spawn(`cd ${pwd} "$@" && git checkout ${newBranch}`, {
             shell: true
         });
-        checkoutBranch.stdout.on('data', function (data) {
+        checkoutBranch.stdout.on('data', async function (data) {
+            comm.stopSpinnerAndShowMessage(oraspinner)
             console.log(chalk.bgRed("-Checkout Message- " + data.toString()))
         })
-        checkoutBranch.stdout.on("close", function (data) {
-            console.log(chalk.keyword("lightblue").bold("Switched to new Branch- ") + chalk.keyword("yellow")(newBranch))
+        checkoutBranch.stdout.on("close", async function (data) {
+            // console.log(chalk.keyword("lightblue").bold("Switched to new Branch- ") + chalk.keyword("yellow")(newBranch))
+            let msg = chalk.keyword("lightblue").bold("Switched to new Branch- ") + chalk.keyword("yellow")(newBranch)
+            comm.stopSpinnerAndShowMessage(oraspinner, "succeed", msg, "none")
             comm.copyStringToClipBoard(`git pull origin ${newBranch.trim()}`)
+            return res("Checkout Complete")
         })
-        checkoutBranch.stdout.on("error", function (data) {
+        checkoutBranch.stdout.on("error", async function (data) {
             // comm.showError("checkout Error Message-" + data.toString())
             return rej("checkout Error Message-" + data.toString())
         })
-        checkoutBranch.stdout.on("pause", function (data) {
+        checkoutBranch.stdout.on("pause", async function (data) {
             // comm.showError("Checkout Pause Message-" + data.toString())
             return rej("Checkout Pause Message-" + data.toString())
         })
         checkoutBranch.stdout.on("end", async function (data) {
-            return res("Checkout Complete")
             // console.log("----------------checkout successfull---------")
         })
     })
 }
+
 function getAllBranch(filterParam) {
-    let branchCommand = `git branch`
-    if (filterParam.includes("--all") || filterParam.includes("-a")) {
-        branchCommand = branchCommand + " --all"
-    }
-    let gitBool = true
-    return new Promise((res, rej) => {
+    return new Promise(async (res, rej) => {
+        let branchCommand = `git branch`
+        if (filterParam) {
+            if (filterParam.includes("--all") || filterParam.includes("-a")) {
+                branchCommand = branchCommand + " --all"
+            }
+        }
+        let gitBool = true
+        comm.startSpinner(oraspinner, "Fetching Branch Dtails", "none")
         let getBranch = spawn(`cd ${pwd} "$@" && ${branchCommand}`, {
             shell: true
         });
@@ -112,12 +101,11 @@ function getAllBranch(filterParam) {
             return rej(`Get git branch failed Error-> ${data}`)
         })
 
-        getBranch.stdout.on('close', function (data) {
+        getBranch.stdout.on('close', async function (data) {
             if (gitBool) {
-                return rej(`Not a Git Repository :(`)
+                return rej(comm.stopSpinnerAndShowMessage(oraspinner, "fail", "Not a Git Repository :(", "#e88388"))
             }
         })
-
         getBranch.stdout.on('data', async function (data) {
             gitBool = false
             let regex = /^(\*\ )/gi
@@ -131,33 +119,46 @@ function getAllBranch(filterParam) {
                 }
                 return curr
             })
-
+            comm.stopSpinnerAndShowMessage(oraspinner)
             return res(allBranchNameTemp)
         })
     })
 }
 
-function pullChanges(pwd, newBranch) {
+function pullChanges(pwd, currentBranch) {
     return new Promise((res, rej) => {
-        var pullChanges = spawn(`cd ${pwd} "$@" && git pull origin ${newBranch}`, {
+        comm.startSpinner(oraspinner, "Fetching Latest pull", "none")
+        let pullGitBool = true
+        var pullChanges = spawn(`cd ${pwd} "$@" && git pull origin ${currentBranch}`, {
             shell: true
         });
 
-        pullChanges.stdout.on('error', async function (error) {
-            return rej("Git Pull Command Failed Error:" + error)
+        pullChanges.stdout.on('error', function (error) {
+            return rej(comm.stopSpinnerAndShowMessage(oraspinner, "fail", "Git Pull Command Failed Error:" + error), "pink")
             // return comm.showError(error)
         })
 
+        pullChanges.stdout.on('close', function (error) {
+            if (pullGitBool) {
+                return rej(comm.stopSpinnerAndShowMessage(oraspinner, "fail", "Pull command Failed. Please Check your connection and try again.", "pink"))
+            }
+        })
+
         pullChanges.stdout.on('data', function (pullData) {
+            comm.stopSpinner(oraspinner)
+            pullGitBool = false
+
             pullData = formatData(pullData)
-            console.log("")
-            console.log(chalk.keyword("lightgreen").bold("Git Pull Data:"))
+            console.log(chalk.keyword("lightgreen")("  Git Pull Data:"))
+            // comm.comm.comm.stopSpinnerAndShowMessage(oraspinner, "info", "Git Pull Data", "lightgreen")
             pullData.forEach(curr => {
-                console.log(chalk.keyword("lightblue")(curr))
+                console.log(chalk.keyword("lightblue")(`  ${curr}`))
             })
             console.log("")
-            pullChanges.stdout.on('close', function (data) {
-                console.log(chalk.keyword("orange")(`Pull Completed Successful for Branch`), chalk.keyword("red")(newBranch))
+            pullChanges.stdout.on('close', async function (data) {
+                // console.log(chalk.keyword("yellow")(`Pull Completed Successful for Branch`), chalk.keyword("red")(currentBranch))
+                let mess = chalk.keyword("yellow")(`Pull Completed Successful for Branch`) + " " + chalk.keyword("red")(currentBranch)
+                comm.stopSpinnerAndShowMessage(oraspinner, "succeed", mess, "none")
                 return res("Pull completed")
             })
         })

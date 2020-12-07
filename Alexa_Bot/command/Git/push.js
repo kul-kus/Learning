@@ -1,10 +1,14 @@
 
 
-var comm = require("./common")
+var comm = require("./../common")
+var gitComm = require("./gitCommon")
 var spawn = require('child_process').spawn;
 let chalk = require("chalk")
 var inquirer = require('inquirer');
 const stripAnsi = require('strip-ansi');
+const cliSpinners = require('cli-spinners').dots
+const oraspinner = require('ora')()
+oraspinner.spinner = cliSpinners
 
 
 
@@ -31,19 +35,19 @@ module.exports = {
             }
 
 
-            pwd = await getCurrentPWD()
+            pwd = await comm.getCurrentPWD()
             // pwd = "/home/kulk@eur.ad.sag/kul/a-my-connector-triggers/git_Irepo/Kul-Learning/Learning/googleMaps"
-            let allBranchName = await getAllBranch()
-
-            console.log(chalk.keyword("lightblue")("Current Branch -> ") + chalk.keyword("red")(currentBranch))
-            let gitSatusData = await gitStatus(pwd, "git status")
+            var { allBranchName, currBranch } = await gitComm.getBranchDeatils(filterParam, pwd, oraspinner)
+            currentBranch = currBranch
+            console.log(chalk.keyword("lightblue")("  Current Branch -> ") + chalk.keyword("red")(currentBranch))
+            let gitSatusData = await gitStatus(pwd, "git status", "Fetching Git Status")
 
             if (gitSatusData && Array.isArray(gitSatusData) && gitSatusData.length && gitSatusData.indexOf("nothing to commit, working tree clean") == -1) {
 
-                let gitStatusData2 = await gitStatus(pwd, "git status -s")
+                let gitStatusData2 = await gitStatus(pwd, "git status -s", "Fetching Git Changes")
 
-                console.log(chalk.keyword("pink")("Files Changed"))
-                console.log(chalk.keyword("grey")(gitStatusData2.join('\n')))
+                console.log(chalk.keyword("pink")("  Files Changed"))
+                console.log(chalk.keyword("grey")("  " + gitStatusData2.join('\n')))
 
                 if (gitStatusData2 && Array.isArray(gitStatusData2) && gitStatusData2.length) {
 
@@ -53,121 +57,69 @@ module.exports = {
                     let commitFiles = await GetSelctedCommitFiles(commitFilesList)
                     addStingMess += ` ${commitFiles.trim()}`
 
-                    console.log(chalk.keyword("orange")("Add Command Generated:"), addStingMess)
+                    console.log(chalk.keyword("orange")("  Add Command Generated:"), addStingMess)
 
                     if (await comm.confirmOptions(`Do you want to push the above Mentioned Changes`)) {
                         await addChanges(pwd, addStingMess)
                         await commitChanges(pwd, filterParam[0], currentBranch)
-                        await pullChanges(pwd, currentBranch)
+                        await gitComm.pullChanges(pwd, currentBranch, oraspinner)
                         await pushChanges(pwd, currentBranch, filterParam[0])
                         await GetCommlitLogs(pwd, filterParam[0], currentBranch)
                     } else {
-                        comm.showMessageOrange("Push process terminated ..")
+                        gitComm.stopSpinnerAndShowMessage(oraspinner, "fail", "Push process terminated ..", comm.hexColors.red)
                     }
                 } else {
-                    return comm.showMessage("No Changes to Commit. :)")
+                    gitComm.stopSpinnerAndShowMessage(oraspinner, "info", "No Changes to Commit. :)", "white")
                 }
 
             } else {
-                return comm.showMessage("No Changes to Commit. :)")
+                gitComm.stopSpinnerAndShowMessage(oraspinner, "info", "No Changes to Commit. :)", "white")
             }
         } catch (error) {
-            console.log("error", error)
-            console.log(chalk.keyword("red")(error))
-            // comm.showError(error)
+            // console.log("error", error)
+            // console.log(chalk.keyword("red")(error))
         }
     }
 
 }
 
-function getCurrentPWD() {
+function gitStatus(pwd, command, spinnerTxt) {
     return new Promise((res, rej) => {
-        var cmdToGetPWD = spawn(`pwd`, {
-            shell: true
-        });
-        cmdToGetPWD.stdout.on("error", function (error) {
-            return rej(`Unbale to Fetch Current Working Directory Error-> ${error}`)
-        })
-        cmdToGetPWD.stdout.on('data', function (data) {
-            let pwd = comm.addEscapeToSpace(data.toString().trim())
-            return res(pwd)
-        })
-    })
-}
-
-function getAllBranch() {
-    let gitBool = true
-    return new Promise((res, rej) => {
-        let getBranch = spawn(`cd ${pwd} "$@" && git branch --all`, {
-            shell: true
-        });
-
-        getBranch.stdout.on('error', function (data) {
-            console.log("error", data)
-            return rej(`Get git branch failed Error-> ${data}`)
-        })
-
-        getBranch.stdout.on('close', function (data) {
-            if (gitBool) {
-                return rej(`Not a Git Repository :(`)
-            }
-        })
-
-        getBranch.stdout.on('data', async function (data) {
-            gitBool = false
-            let regex = /^(\*\ )/gi
-            let allBranchName = formatData(data)
-            let allBranchNameTemp = allBranchName.filter(curr => Boolean(curr)).map(curr => {
-                curr = curr.trim()
-                if (curr.match(regex)) {
-                    curr = curr.replace(regex, "")
-                    currentBranch = curr
-                }
-                return curr
-            })
-
-            return res(allBranchNameTemp)
-        })
-    })
-}
-function gitStatus(pwd, command) {
-    return new Promise((res, rej) => {
-
         var getStatus = spawn(`cd ${pwd} "$@" && ${command}`, {
             shell: true
         });
-
+        gitComm.startSpinner(oraspinner, spinnerTxt, "none")
         getStatus.stdout.on('error', function (data) {
-            console.log("error", data)
-            return rej(`Git Status failed Error-> ${data}`)
+            return rej(gitComm.stopSpinnerAndShowMessage(oraspinner, "fail", `Git Status failed Error-> ${data}`, comm.hexColors.red))
         })
-        getStatus.stdout.on('data', async function (data) {
-
-            return res(formatData(data))
+        getStatus.stdout.on('data', function (data) {
+            gitComm.stopSpinnerAndShowMessage(oraspinner)
+            return res(gitComm.formatData(data))
         })
-
     })
 }
 
 
 function addChanges(pwd, addStingMess) {
     return new Promise((res, rej) => {
-        console.log(chalk.keyword("magenta")("Command Initiated: "), addStingMess)
-
+        console.log(chalk.keyword("magenta")("  Command Initiated: "), addStingMess)
+        gitComm.startSpinner(oraspinner, "Adding changes to Git Repository", "none")
         var addChanges = spawn(`cd ${pwd} "$@" && ${addStingMess}`, {
             shell: true
         });
+
         addChanges.stdout.on('data', async function (data) {
-            data = formatData(data)
+            data = gitComm.formatData(data)
             console.log("Git add Data: ", data)
         })
         addChanges.stdout.on('error', async function (error) {
-            comm.showError(error)
-            return rej(error)
+            return rej(gitComm.stopSpinnerAndShowMessage(oraspinner, "fail", error, comm.hexColors.red))
 
         })
         addChanges.stdout.on('close', async function (cdata) {
             //------------------------- commit the changes----------
+            let mess = "Changes Added to Git Repository"
+            gitComm.stopSpinnerAndShowMessage(oraspinner, "succeed", mess, "none")
             return res(cdata)
         })
     })
@@ -178,55 +130,28 @@ function commitChanges(pwd, commitMess, currentBranch) {
         var commitChanges = spawn(`cd ${pwd} "$@" && git commit -m "${commitMess}"`, {
             shell: true
         });
-        commitChanges.stdout.on('error', async function (error) {
-            comm.showError(error)
-            return rej(error)
-
+        gitComm.startSpinner(oraspinner, "Commiting changes to Git Repository", "none")
+        commitChanges.stdout.on('error', function (error) {
+            // comm.showError(error)
+            return rej(gitComm.stopSpinnerAndShowMessage(oraspinner, "fail", error, comm.hexColors.red))
         })
-        commitChanges.stdout.on('data', async function (data) {
-            data = formatData(data)
+        commitChanges.stdout.on('data', function (data) {
+
+            data = gitComm.formatData(data)
             console.log("")
             if (data.indexOf("no changes added to commit") > -1) {
-                console.log(chalk.green("No changes added to commit.", '\n'))
-
+                return rej(gitComm.stopSpinnerAndShowMessage(oraspinner, "warn", "No changes added to commit.", comm.hexColors.white))
             } else {
                 console.log(chalk.keyword("lightgreen")("Git Commit Data: "))
                 console.log(chalk.keyword("lightblue")(data.join('\n')))
-                commitChanges.stdout.on('close', async function (data) {
-                    data = formatData(data)
-                    console.log(chalk.keyword("cyan")("Code Commited Successfully on branch"), chalk.keyword("red")(currentBranch))
+                commitChanges.stdout.on('close', function (data) {
+                    data = gitComm.formatData(data)
+                    // console.log(chalk.keyword("cyan")("Code Commited Successfully on branch"), chalk.keyword("red")(currentBranch))
+                    console.log("")
+                    gitComm.stopSpinnerAndShowMessage(oraspinner, "succeed", "Code Commited Successfully on branch " + chalk.keyword("red")(currentBranch), "cyan")
                     return res(data)
                 })
             }
-        })
-    })
-}
-
-function pullChanges(pwd, currentBranch) {
-    return new Promise((res, rej) => {
-        var pullChanges = spawn(`cd ${pwd} "$@" && git pull origin ${currentBranch}`, {
-            shell: true
-        });
-
-        pullChanges.stdout.on('error', async function (error) {
-            return rej("Git Pull Command Failed Error:" + error)
-            // return comm.showError(error)
-        })
-
-        pullChanges.stdout.on('data', function (pullData) {
-            pullData = formatData(pullData)
-
-            console.log("")
-            console.log(chalk.keyword("lightgreen")("Git Pull Data:"))
-            pullData.forEach(curr => {
-                console.log(chalk.keyword("lightblue")(curr))
-            })
-            console.log("")
-            pullChanges.stdout.on('close', function (data) {
-                console.log(chalk.keyword("yellow")(`Pull Completed Successful for Branch`), chalk.keyword("red")(currentBranch))
-                return res("Pull completed")
-            })
-
         })
     })
 
@@ -234,50 +159,43 @@ function pullChanges(pwd, currentBranch) {
 
 function pushChanges(pwd, currentBranch) {
     return new Promise((res, rej) => {
+        gitComm.startSpinner(oraspinner, "Pushing changes to Git Repository", "none")
         var pushChanges = spawn(`cd ${pwd} "$@" && git push origin ${currentBranch}`, {
             shell: true
         });
 
         pushChanges.stdout.on('error', function (error) {
-            console.log(chalk.red("Push Error: ", error))
-            // comm.showError(error)
-            return rej(error)
+            return rej(gitComm.stopSpinnerAndShowMessage(oraspinner, "fail", `Push error ${error}`, comm.hexColors.red))
         })
         pushChanges.stdout.on('data', function (data) {
-            data = formatData(data)
-            console.log("Push Data: ", data)
+            data = gitComm.formatData(data)
+            console.log("  Push Data: ", data)
         })
 
 
         pushChanges.stdout.on('close', function (data) {
-            data = formatData(data)
-
+            data = gitComm.formatData(data)
             console.log("")
-            comm.showMessageOrange("Push Completed Successfully :)")
-            return res("Push Complete")
-
+            let mess = "Push Completed Successfully :)"
+            return res(comm.stopSpinnerAndShowMessage(oraspinner, "succeed", mess, comm.hexColors.cyan))
         })
     })
 }
 
 function GetCommlitLogs(pwd, commitMessage, currentBranch) {
     return new Promise((res, rej) => {
+        gitComm.startSpinner(oraspinner, "Fetching Commit Logs", "none")
 
         var commitLog = spawn(`cd ${pwd} "$@" && git log -1`, {
             shell: true
         });
         commitLog.stdout.on('error', function (error) {
-            console.log(chalk.red("git Log Error: ", error))
-            comm.showError(error)
-            return rej(error)
+            return rej(gitComm.stopSpinnerAndShowMessage(oraspinner, "fail", `Git Log Error: ${error}`, comm.hexColors.red))
         })
 
         commitLog.stdout.on('data', function (logdata) {
-            // console.log("logdata", logdata.toString())
-            logdata = formatData(logdata)
-            // console.log("logdata", logdata)
+            logdata = gitComm.formatData(logdata)
             commitLog.stdout.on('close', function (data) {
-
                 let commitObj = {
                     "commit": "",
                     "branch": currentBranch,
@@ -299,6 +217,7 @@ function GetCommlitLogs(pwd, commitMessage, currentBranch) {
                         commitObj["author"] = commitObj["author"].trim()
                     }
                 })
+                comm.stopSpinner(oraspinner)
                 console.log("")
                 console.log(chalk.keyword("magenta").bold("-- Commit Log Data --"))
                 console.log(chalk.white("Commit ID: ", commitObj["commit"]))
@@ -308,30 +227,17 @@ function GetCommlitLogs(pwd, commitMessage, currentBranch) {
                 console.log(chalk.white("Author: ", commitObj['author']))
                 console.log("")
 
-                let strCopy = `
-                Commit ID: ${commitObj["commit"]}
-                Branch: ${commitObj['branch']}
-                Message: ${commitObj['message']}
-                Date ${commitObj['date']}
-                Author ${commitObj['author']}
-                `
+                let strCopy = `Commit ID: ${commitObj["commit"]}\nBranch: ${commitObj['branch']}\nMessage: ${commitObj['message']}\nDate ${commitObj['date']}\nAuthor ${commitObj['author']}`
                 if (copyBool) {
                     comm.copyStringToClipBoard(strCopy)
+                    comm.stopSpinnerAndShowMessage(oraspinner, "succeed", "Commit Data copied Successfully\n", "lightgreen")
+
                 }
                 return res("Commit Logs")
-
             })
         })
     })
 }
-
-function formatData(data) {
-    if (data) {
-        return data.toString().split('\n').filter(curr => Boolean(curr)).map(curr => curr.trim())
-    }
-    return ""
-}
-
 
 function getAllFilesModified(data) {
     let commitFilesList = []

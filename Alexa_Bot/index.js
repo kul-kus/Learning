@@ -4,6 +4,8 @@
 var changeConfig = require("./command/change_config")
 var createCommon = require("./command/create_common_fun_file")
 var migrate = require("./command/migrate")
+var killProcess = require("./command/kill_process")
+
 var commandFun = require("./command/CURD_command")
 var help = require("./command/help")
 
@@ -83,16 +85,22 @@ else if (command == "code") {
   return require("./command/open").open(parameters)
 }
 else if (command == "checkout" || command == "check" || command == "chk") {
-  return require("./command/checkout").checkout(parameters)
+  return require("./command/Git/checkout").checkout(parameters)
 }
 else if (command == "pull") {
-  return require("./command/pull").pull()
+  return require("./command/Git/pull").pull()
 }
 else if (command == "push") {
-  return require("./command/push").push(parameters)
+  return require("./command/Git/push").push(parameters)
+}
+else if (command == "branch") {
+  return require("./command/Git/branch").branch(parameters)
 }
 else if (command == "version" || command == "--version" || command == "-v") {
   return commandFun.version()
+}
+else if (command == "kill") {
+  return killProcess.kill(parameters)
 }
 else if (command == "help" || command == "--help" || command.length == 0) {
   help.help()

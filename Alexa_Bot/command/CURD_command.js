@@ -1,14 +1,14 @@
 var comm = require("./common.js")
 var fs = require("fs")
 var spawn = require('child_process').spawn;
-
+const path = require("path");
+let chalk = require("chalk")
 
 module.exports = {
 
     version: async function () {
         try {
-            let pwd = await comm.getCurrentPWD()
-            let file_data = fs.readFileSync(`${pwd}/package.json`, { encoding: 'utf8', flag: 'r' })
+            let file_data = fs.readFileSync(path.resolve(__dirname, "../package.json"), { encoding: 'utf8', flag: 'r' })
             if (comm.checkJson()) {
                 file_data = comm.convertJson(file_data)
             }
@@ -19,7 +19,7 @@ module.exports = {
             comm.showError(error)
         }
     },
-    
+
     vsCode: async function () {
         try {
             let readCommand = spawn(`code ${comm.homePath}`, {
@@ -77,11 +77,29 @@ module.exports = {
     restart: async function () {
         // systemctl poweroff -i
         try {
-            let shutdown = spawn(`systemctl reboot`, {
-                shell: true
-            })
-            shutdown.stdout.on('data', function (data) {
-            });
+            if (await comm.confirmOptions(`Do you want to Restart laptop`)) {
+                let kill_process = require("./kill_process")
+                let kill_data = await kill_process.kill(["-a", "-f"])
+                let counter = 3
+                process.stdout.write(chalk.hex(comm.hexColors.blue)("\n Restarting "))
+                const intervalObj = setInterval(() => {
+                    process.stdout.write(chalk.hex(comm.hexColors.blue)("∙"));
+                    if (counter == 0) {
+                        clearInterval(intervalObj);
+                        // console.log(chalk.hex(comm.hexColors.yellow)("\n Bye :)"))
+                        let shutdown = spawn(`systemctl reboot`, {
+                            shell: true
+                        })
+                        shutdown.stdout.on('data', function (data) {
+                        });
+                    }
+                    counter--
+                }, 1000);
+
+
+            } else {
+                return comm.showTerminationMsg("Restart process terminated.")
+            }
         } catch (error) {
             return comm.showError(error)
         }
@@ -89,11 +107,27 @@ module.exports = {
     shutdown: async function () {
         // systemctl poweroff -i
         try {
-            let shutdown = spawn(`systemctl poweroff -i`, {
-                shell: true
-            })
-            shutdown.stdout.on('data', function (data) {
-            });
+            if (await comm.confirmOptions(`Do you want to Shutdown laptop`)) {
+                let kill_process = require("./kill_process")
+                let kill_data = await kill_process.kill(["-a", "-f"])
+                let counter = 3
+                process.stdout.write(chalk.hex(comm.hexColors.blue)("\n Shutting Down "))
+                const intervalObj = setInterval(() => {
+                    process.stdout.write(chalk.hex(comm.hexColors.blue)("∙"));
+                    if (counter == 0) {
+                        clearInterval(intervalObj);
+                        console.log(chalk.hex(comm.hexColors.yellow)("\n Bye :)"))
+                        let shutdown = spawn(`systemctl poweroff -i`, {
+                            shell: true
+                        })
+                        shutdown.stdout.on('data', function (data) {
+                        });
+                    }
+                    counter--
+                }, 1000);
+            } else {
+                return comm.showTerminationMsg("ShutDown Process terminated.")
+            }
         } catch (error) {
             return comm.showError(error)
         }
